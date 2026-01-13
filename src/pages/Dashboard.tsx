@@ -12,6 +12,7 @@ import TransactionModal from '@/components/TransactionModal';
 import ScheduleTab from '@/components/ScheduleTab';
 import CategoriesTab from '@/components/CategoriesTab';
 import ExpenseChart from '@/components/ExpenseChart';
+import FinancialTips from '@/components/FinancialTips';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -184,6 +185,12 @@ export default function Dashboard() {
                 </CardContent>
               </Card>
             )}
+
+            <FinancialTips
+              currentDate={currentDate}
+              summary={summary}
+              categoryExpenses={categoryExpenses}
+            />
 
             <div className="flex justify-center">
               <Button size="lg" onClick={handleAddTransaction} className="gap-2">
