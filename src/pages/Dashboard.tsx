@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
+import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogOut, Plus, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
+import { LogOut, Plus, TrendingUp, TrendingDown, Wallet, Moon, Sun } from 'lucide-react';
 import { MonthSummary, Transaction, CategoryExpense } from '@/types';
 import { TransactionService } from '@/services/transactionService';
 import { CategoryService } from '@/services/categoryService';
@@ -16,6 +17,7 @@ import ExpenseChart from '@/components/ExpenseChart';
 import FinancialTips from '@/components/FinancialTips';
 
 export default function Dashboard() {
+  const { theme = 'system', setTheme } = useTheme();
   const { user, signOut } = useAuth();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [summary, setSummary] = useState<MonthSummary>({ totalIncome: 0, totalExpense: 0, balance: 0 });
@@ -105,9 +107,23 @@ export default function Dashboard() {
               {user ? `Olá, ${user.name}` : 'Modo convidado'}
             </p>
           </div>
-          <Button variant="outline" size="icon" onClick={signOut}>
-            <LogOut className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+              aria-label="Alternar tema"
+           >
+              {theme === 'dark' ? (
+                <Sun className="h-4 w-4" />
+              ) : (
+                <Moon className="h-4 w-4" />
+              )}
+            </Button>
+            <Button variant="outline" size="icon" onClick={signOut} aria-label="Sair">
+              <LogOut className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
 
         <Tabs defaultValue="overview" className="space-y-6">
