@@ -1,58 +1,62 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User } from '@supabase/supabase-js';
-import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
+import { UserService } from '@/services/userService';
+import { CategoryService } from '@/services/categoryService';
+
+interface LocalUser {
+  id: string;
+  name: string;
+  email: string;
+  isGuest: boolean;
+}
 
 interface AuthContextType {
-  user: User | null;
+  user: LocalUser | null;
   loading: boolean;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
-  signOut: () => Promise<void>;
+  signInAsGuest: () => void;
+  signOut: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<LocalUser | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Set up auth state listener first
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    // Then get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
-
-    return () => subscription.unsubscribe();
+    // Check for existing session
+    const session = UserService.getSession();
+    if (session) {
+      setUser({
+        id: session.userId,
+        name: session.name,
+        email: session.email,
+        isGuest: session.isGuest
+      });
+    }
+    setLoading(false);
   }, []);
 
   const signUp = async (email: string, password: string, name: string) => {
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: { name }
-      }
-    });
+    const result = UserService.signUp(name, email, password);
 
-    if (error) {
+    if (!result.success) {
       toast({
         title: 'Erro ao cadastrar',
-        description: error.message,
+        description: result.error,
         variant: 'destructive'
       });
-      throw error;
+      throw new Error(result.error);
+    }
+
+    // Initialize default categories for new user
+    if (result.userId) {
+      CategoryService.getAll(result.userId); // This initializes defaults
     }
 
     toast({
@@ -62,30 +66,54 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
+    const result = UserService.signIn(email, password);
 
-    if (error) {
+    if (!result.success || !result.user) {
       toast({
         title: 'Erro ao entrar',
-        description: error.message,
+        description: result.error,
         variant: 'destructive'
       });
-      throw error;
+      throw new Error(result.error);
     }
+
+    UserService.setSession(result.user.id, result.user.name, result.user.email, false);
+    setUser({
+      id: result.user.id,
+      name: result.user.name,
+      email: result.user.email,
+      isGuest: false
+    });
+
+    // Initialize default categories if needed
+    CategoryService.getAll(result.user.id);
 
     navigate('/dashboard');
   };
 
-  const signOut = async () => {
-    await supabase.auth.signOut();
+  const signInAsGuest = () => {
+    const guestId = UserService.loginAsGuest();
+    setUser({
+      id: guestId,
+      name: 'Convidado',
+      email: '',
+      isGuest: true
+    });
+
+    // Initialize default categories for guest
+    CategoryService.getAll(guestId);
+
+    navigate('/dashboard');
+  };
+
+  const signOut = () => {
+    UserService.clearSession();
+    setUser(null);
     navigate('/login');
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, loading, signUp, signIn, signInAsGuest, signOut }}>
       {children}
     </AuthContext.Provider>
   );

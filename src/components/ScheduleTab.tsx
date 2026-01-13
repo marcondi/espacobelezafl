@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Plus, Calendar, Check, X } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
+import { Plus, Calendar, Check } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { ScheduledBill, BillPayment, Category } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import ScheduledBillModal from './ScheduledBillModal';
+import { ScheduledBillService } from '@/services/scheduledBillService';
+import { CategoryService } from '@/services/categoryService';
+import { TransactionService } from '@/services/transactionService';
 import { format } from 'date-fns';
 
 interface ScheduleTabProps {
@@ -28,33 +30,21 @@ export default function ScheduleTab({ currentDate, onRefresh }: ScheduleTabProps
     }
   }, [user, currentDate]);
 
-  const loadData = async () => {
+  const loadData = () => {
     if (!user) return;
 
-    const { data: billsData } = await supabase
-      .from('scheduled_bills')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('is_active', true);
-
-    const { data: categoriesData } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('user_id', user.id);
-
+    const billsData = ScheduledBillService.getActiveBills(user.id);
+    const categoriesData = CategoryService.getAll(user.id);
+    
     const year = currentDate.getFullYear();
-    const month = currentDate.getMonth() + 1;
+    const month = currentDate.getMonth();
 
-    const { data: paymentsData } = await supabase
-      .from('bill_payments')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('year', year)
-      .eq('month', month);
+    const paymentsData = ScheduledBillService.getAllPayments(user.id);
+    const monthPayments = paymentsData.filter(p => p.year === year && p.month === month);
 
-    if (billsData) setBills(billsData as ScheduledBill[]);
-    if (categoriesData) setCategories(categoriesData as Category[]);
-    if (paymentsData) setPayments(paymentsData as BillPayment[]);
+    setBills(billsData);
+    setCategories(categoriesData);
+    setPayments(monthPayments);
   };
 
   const getCategoryName = (categoryId: string) => {
@@ -65,51 +55,25 @@ export default function ScheduleTab({ currentDate, onRefresh }: ScheduleTabProps
     return payments.find(p => p.scheduled_bill_id === billId)?.is_paid || false;
   };
 
-  const handlePayBill = async (bill: ScheduledBill) => {
+  const handlePayBill = (bill: ScheduledBill) => {
     if (!user) return;
 
     const year = currentDate.getFullYear();
-    const month = currentDate.getMonth() + 1;
+    const month = currentDate.getMonth();
 
     // Create transaction
-    const { data: txData, error: txError } = await supabase
-      .from('transactions')
-      .insert({
-        user_id: user.id,
-        category_id: bill.category_id,
-        description: bill.description,
-        amount: bill.amount,
-        type: 'expense',
-        date: format(new Date(year, month - 1, bill.due_day), 'yyyy-MM-dd'),
-        recurrence: null
-      })
-      .select()
-      .single();
+    const txData = TransactionService.create(user.id, {
+      category_id: bill.category_id,
+      description: bill.description,
+      amount: bill.amount,
+      type: 'expense',
+      date: format(new Date(year, month, bill.due_day), 'yyyy-MM-dd'),
+      recurrence: null,
+      recurrence_group_id: null
+    });
 
-    if (txError) {
-      toast({ title: 'Erro', description: txError.message, variant: 'destructive' });
-      return;
-    }
-
-    // Create or update payment
-    const existingPayment = payments.find(p => p.scheduled_bill_id === bill.id);
-
-    if (existingPayment) {
-      await supabase
-        .from('bill_payments')
-        .update({ is_paid: true, transaction_id: txData.id, paid_at: new Date().toISOString() })
-        .eq('id', existingPayment.id);
-    } else {
-      await supabase.from('bill_payments').insert({
-        user_id: user.id,
-        scheduled_bill_id: bill.id,
-        year,
-        month,
-        is_paid: true,
-        transaction_id: txData.id,
-        paid_at: new Date().toISOString()
-      });
-    }
+    // Mark as paid
+    ScheduledBillService.markAsPaid(user.id, bill.id, year, month, txData.id);
 
     toast({ title: 'Pago!', description: 'Conta marcada como paga.' });
     loadData();

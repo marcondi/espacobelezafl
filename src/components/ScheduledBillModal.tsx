@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { Category } from '@/types';
+import { CategoryService } from '@/services/categoryService';
+import { ScheduledBillService } from '@/services/scheduledBillService';
 
 interface ScheduledBillModalProps {
   open: boolean;
@@ -45,17 +46,13 @@ export default function ScheduledBillModal({ open, onClose }: ScheduledBillModal
     }
   }, [open]);
 
-  const loadCategories = async () => {
+  const loadCategories = () => {
     if (!user) return;
-    const { data } = await supabase
-      .from('categories')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('type', 'expense');
-    if (data) setCategories(data as Category[]);
+    const data = CategoryService.getAll(user.id).filter(c => c.type === 'expense');
+    setCategories(data);
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!user) return;
 
     if (!formData.description || !formData.amount || !formData.category_id || !formData.due_day) {
@@ -77,20 +74,13 @@ export default function ScheduledBillModal({ open, onClose }: ScheduledBillModal
       return;
     }
 
-    const { error } = await supabase.from('scheduled_bills').insert({
-      user_id: user.id,
+    ScheduledBillService.createBill(user.id, {
       description: formData.description,
       amount: parseFloat(formData.amount),
       category_id: formData.category_id,
       due_day: dueDay,
-      recurrence: formData.recurrence,
-      is_active: true
+      recurrence: formData.recurrence
     });
-
-    if (error) {
-      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
-      return;
-    }
 
     toast({ title: 'Criado!', description: 'Conta agendada criada com sucesso.' });
     onClose();

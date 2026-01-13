@@ -3,9 +3,10 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogOut, Plus, Calendar, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
-import { MonthSummary, Transaction, CategoryExpense, Category } from '@/types';
+import { LogOut, Plus, TrendingUp, TrendingDown, Wallet } from 'lucide-react';
+import { MonthSummary, Transaction, CategoryExpense } from '@/types';
+import { TransactionService } from '@/services/transactionService';
+import { CategoryService } from '@/services/categoryService';
 import MonthSelector from '@/components/MonthSelector';
 import TransactionsList from '@/components/TransactionsList';
 import TransactionModal from '@/components/TransactionModal';
@@ -13,8 +14,6 @@ import ScheduleTab from '@/components/ScheduleTab';
 import CategoriesTab from '@/components/CategoriesTab';
 import ExpenseChart from '@/components/ExpenseChart';
 import FinancialTips from '@/components/FinancialTips';
-import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 export default function Dashboard() {
   const { user, signOut } = useAuth();
@@ -31,57 +30,45 @@ export default function Dashboard() {
     }
   }, [user, currentDate]);
 
-  const loadData = async () => {
+  const loadData = () => {
     if (!user) return;
 
     const year = currentDate.getFullYear();
-    const month = currentDate.getMonth() + 1;
-    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
-    const endDate = new Date(year, month, 0);
-    const endDateStr = format(endDate, 'yyyy-MM-dd');
+    const month = currentDate.getMonth();
 
-    // Load transactions
-    const { data: txData } = await supabase
-      .from('transactions')
-      .select('*')
-      .eq('user_id', user.id)
-      .gte('date', startDate)
-      .lte('date', endDateStr)
-      .order('date', { ascending: false });
+    // Load transactions for current month
+    const txData = TransactionService.getByMonth(user.id, year, month);
+    setTransactions(txData);
 
-    if (txData) {
-      setTransactions(txData as Transaction[]);
+    const income = txData.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0);
+    const expense = txData.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0);
 
-      const income = txData.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0);
-      const expense = txData.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0);
+    setSummary({
+      totalIncome: income,
+      totalExpense: expense,
+      balance: income - expense
+    });
 
-      setSummary({
-        totalIncome: income,
-        totalExpense: expense,
-        balance: income - expense
-      });
+    // Calculate category expenses
+    const categories = CategoryService.getAll(user.id);
+    
+    const expensesByCategory: Record<string, number> = {};
+    txData.filter(t => t.type === 'expense').forEach(t => {
+      const cat = categories.find(c => c.id === t.category_id);
+      if (cat) {
+        expensesByCategory[cat.name] = (expensesByCategory[cat.name] || 0) + Number(t.amount);
+      }
+    });
 
-      // Calculate category expenses
-      const { data: categories } = await supabase.from('categories').select('*').eq('user_id', user.id) as { data: Category[] | null };
-      
-      const expensesByCategory: Record<string, number> = {};
-      txData.filter(t => t.type === 'expense').forEach(t => {
-        const cat = categories?.find(c => c.id === t.category_id);
-        if (cat) {
-          expensesByCategory[cat.name] = (expensesByCategory[cat.name] || 0) + Number(t.amount);
-        }
-      });
-
-      const colors = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(var(--destructive))', 'hsl(var(--accent))', 'hsl(158 64% 62%)', 'hsl(0 72% 71%)'];
-      
-      setCategoryExpenses(
-        Object.entries(expensesByCategory).map(([category, amount], i) => ({
-          category,
-          amount,
-          color: colors[i % colors.length]
-        }))
-      );
-    }
+    const colors = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(var(--destructive))', 'hsl(var(--accent))', 'hsl(158 64% 62%)', 'hsl(0 72% 71%)'];
+    
+    setCategoryExpenses(
+      Object.entries(expensesByCategory).map(([category, amount], i) => ({
+        category,
+        amount,
+        color: colors[i % colors.length]
+      }))
+    );
   };
 
   const handlePreviousMonth = () => {
@@ -115,7 +102,7 @@ export default function Dashboard() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Controle Financeiro</h1>
             <p className="text-muted-foreground">
-              {user ? `Olá, ${user.email}` : 'Modo convidado'}
+              {user ? `Olá, ${user.name}` : 'Modo convidado'}
             </p>
           </div>
           <Button variant="outline" size="icon" onClick={signOut}>

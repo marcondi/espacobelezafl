@@ -3,11 +3,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Pencil, Trash2, TrendingUp, TrendingDown } from 'lucide-react';
 import { format } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { useEffect, useState } from 'react';
+import { CategoryService } from '@/services/categoryService';
+import { TransactionService } from '@/services/transactionService';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -37,25 +37,24 @@ export default function TransactionsList({ transactions, onEdit, onRefresh }: Tr
     }
   }, [user]);
 
-  const loadCategories = async () => {
+  const loadCategories = () => {
     if (!user) return;
-    const { data } = await supabase.from('categories').select('*').eq('user_id', user.id);
-    if (data) setCategories(data as Category[]);
+    const data = CategoryService.getAll(user.id);
+    setCategories(data);
   };
 
   const getCategoryName = (categoryId: string) => {
     return categories.find(c => c.id === categoryId)?.name || 'Sem categoria';
   };
 
-  const handleDelete = async () => {
-    if (!deleteId) return;
+  const handleDelete = () => {
+    if (!deleteId || !user) return;
 
-    const { error } = await supabase.from('transactions').delete().eq('id', deleteId);
+    const success = TransactionService.delete(user.id, deleteId);
 
-    if (error) {
+    if (!success) {
       toast({
         title: 'Erro ao excluir',
-        description: error.message,
         variant: 'destructive'
       });
       return;
