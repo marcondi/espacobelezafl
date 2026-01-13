@@ -73,12 +73,20 @@ export class TransactionService {
 
       const newDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-      // Evita criar duplicados se já existirem lançamentos dessa série para a mesma data
-      const alreadyExists = transactions.some(
-        (t) =>
-          t.recurrence_group_id === baseTransaction.recurrence_group_id &&
-          t.date === newDate,
-      );
+      // Evita criar duplicados se já existirem lançamentos dessa série no mesmo mês
+      const alreadyExists = transactions.some((t) => {
+        if (t.recurrence_group_id !== baseTransaction.recurrence_group_id) return false;
+
+        const [yStr, mStr] = t.date.split('-');
+        const existingYear = Number(yStr);
+        const existingMonth = Number(mStr);
+
+        const [newYStr, newMStr] = newDate.split('-');
+        const newYear = Number(newYStr);
+        const newMonth = Number(newMStr);
+
+        return existingYear === newYear && existingMonth === newMonth;
+      });
 
       if (alreadyExists) continue;
 
