@@ -47,23 +47,47 @@ export class TransactionService {
     if (!baseTransaction.recurrence || baseTransaction.recurrence === 'none') return;
 
     const transactions = this.getAll(userId);
-    const baseDate = new Date(baseTransaction.date);
+
+    const [baseYearStr, baseMonthStr, baseDayStr] = baseTransaction.date.split('-');
+    const baseYear = Number(baseYearStr);
+    const baseMonth = Number(baseMonthStr); // 1-12
+    const baseDay = Number(baseDayStr);
+
     const monthsToGenerate = baseTransaction.recurrence === 'monthly' ? 12 : 1;
 
     for (let i = 1; i <= monthsToGenerate; i++) {
-      const newDate = new Date(baseDate);
+      let year = baseYear;
+      let month = baseMonth;
+
       if (baseTransaction.recurrence === 'monthly') {
-        newDate.setMonth(newDate.getMonth() + i);
+        const monthIndex = baseMonth - 1 + i; // 0-based
+        year = baseYear + Math.floor(monthIndex / 12);
+        month = (monthIndex % 12) + 1;
       } else {
-        newDate.setFullYear(newDate.getFullYear() + i);
+        year = baseYear + i;
+        month = baseMonth;
       }
+
+      const daysInMonth = new Date(year, month, 0).getDate();
+      const day = Math.min(baseDay, daysInMonth);
+
+      const newDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+      // Evita criar duplicados se já existirem lançamentos dessa série para a mesma data
+      const alreadyExists = transactions.some(
+        (t) =>
+          t.recurrence_group_id === baseTransaction.recurrence_group_id &&
+          t.date === newDate,
+      );
+
+      if (alreadyExists) continue;
 
       const recurring: Transaction = {
         ...baseTransaction,
         id: crypto.randomUUID(),
-        date: newDate.toISOString().split('T')[0],
+        date: newDate,
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       };
 
       transactions.push(recurring);
