@@ -6,8 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { Category, TransactionType } from '@/types';
+import { CategoryService } from '@/services/categoryService';
 
 interface CategoryModalProps {
   open: boolean;
@@ -38,7 +38,7 @@ export default function CategoryModal({ open, onClose, category }: CategoryModal
     }
   }, [category, open]);
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!user) return;
 
     if (!formData.name) {
@@ -51,29 +51,14 @@ export default function CategoryModal({ open, onClose, category }: CategoryModal
     }
 
     if (category) {
-      const { error } = await supabase
-        .from('categories')
-        .update({ name: formData.name, type: formData.type })
-        .eq('id', category.id);
-
-      if (error) {
-        toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' });
+      const success = CategoryService.update(user.id, category.id, formData.name, formData.type);
+      if (!success) {
+        toast({ title: 'Erro ao atualizar', variant: 'destructive' });
         return;
       }
       toast({ title: 'Atualizado!', description: 'Categoria atualizada com sucesso.' });
     } else {
-      const { error } = await supabase
-        .from('categories')
-        .insert({
-          user_id: user.id,
-          name: formData.name,
-          type: formData.type
-        });
-
-      if (error) {
-        toast({ title: 'Erro ao criar', description: error.message, variant: 'destructive' });
-        return;
-      }
+      CategoryService.create(user.id, formData.name, formData.type);
       toast({ title: 'Criado!', description: 'Categoria criada com sucesso.' });
     }
 

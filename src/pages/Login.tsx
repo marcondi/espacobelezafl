@@ -10,7 +10,7 @@ import { Wallet, TrendingUp } from 'lucide-react';
 
 export default function Login() {
   const navigate = useNavigate();
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, signInAsGuest } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const [loginData, setLoginData] = useState({ email: '', password: '' });
@@ -38,7 +38,7 @@ export default function Login() {
   };
 
   const handleGuest = () => {
-    navigate('/dashboard');
+    signInAsGuest();
   };
 
   return (

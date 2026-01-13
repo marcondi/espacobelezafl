@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
 import { Transaction, Category, TransactionType, RecurrenceType } from '@/types';
+import { CategoryService } from '@/services/categoryService';
+import { TransactionService } from '@/services/transactionService';
 
 interface TransactionModalProps {
   open: boolean;
@@ -57,15 +58,15 @@ export default function TransactionModal({ open, onClose, transaction }: Transac
     }
   }, [transaction, open]);
 
-  const loadCategories = async () => {
+  const loadCategories = () => {
     if (!user) return;
-    const { data } = await supabase.from('categories').select('*').eq('user_id', user.id);
-    if (data) setCategories(data as Category[]);
+    const data = CategoryService.getAll(user.id);
+    setCategories(data);
   };
 
   const filteredCategories = categories.filter(c => c.type === activeTab);
 
-  const handleSubmit = async () => {
+  const handleSubmit = () => {
     if (!user) return;
 
     if (!formData.description || !formData.amount || !formData.category_id) {
@@ -78,29 +79,24 @@ export default function TransactionModal({ open, onClose, transaction }: Transac
     }
 
     const data = {
-      user_id: user.id,
       description: formData.description,
       amount: parseFloat(formData.amount),
       category_id: formData.category_id,
       date: formData.date,
       type: activeTab,
       recurrence: formData.recurrence === 'none' ? null : formData.recurrence,
-      recurrence_group_id: formData.recurrence !== 'none' ? crypto.randomUUID() : null
+      recurrence_group_id: null
     };
 
     if (transaction) {
-      const { error } = await supabase.from('transactions').update(data).eq('id', transaction.id);
-      if (error) {
-        toast({ title: 'Erro ao atualizar', description: error.message, variant: 'destructive' });
+      const success = TransactionService.update(user.id, transaction.id, data);
+      if (!success) {
+        toast({ title: 'Erro ao atualizar', variant: 'destructive' });
         return;
       }
       toast({ title: 'Atualizado!', description: 'Lançamento atualizado com sucesso.' });
     } else {
-      const { error } = await supabase.from('transactions').insert(data);
-      if (error) {
-        toast({ title: 'Erro ao criar', description: error.message, variant: 'destructive' });
-        return;
-      }
+      TransactionService.create(user.id, data);
       toast({ title: 'Criado!', description: 'Lançamento criado com sucesso.' });
     }
 

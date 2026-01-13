@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Pencil, Trash2 } from 'lucide-react';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Category } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { CategoryService } from '@/services/categoryService';
 import CategoryModal from './CategoryModal';
 import {
   AlertDialog,
@@ -32,10 +32,10 @@ export default function CategoriesTab() {
     }
   }, [user]);
 
-  const loadCategories = async () => {
+  const loadCategories = () => {
     if (!user) return;
-    const { data } = await supabase.from('categories').select('*').eq('user_id', user.id).order('type').order('name');
-    if (data) setCategories(data as Category[]);
+    const data = CategoryService.getAll(user.id);
+    setCategories(data);
   };
 
   const handleAdd = () => {
@@ -48,15 +48,14 @@ export default function CategoriesTab() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async () => {
-    if (!deleteId) return;
+  const handleDelete = () => {
+    if (!deleteId || !user) return;
 
-    const { error } = await supabase.from('categories').delete().eq('id', deleteId);
+    const success = CategoryService.delete(user.id, deleteId);
 
-    if (error) {
+    if (!success) {
       toast({
         title: 'Erro ao excluir',
-        description: error.message,
         variant: 'destructive'
       });
       return;
