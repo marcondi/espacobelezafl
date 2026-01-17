@@ -57,6 +57,7 @@ export default function Dashboard() {
     try {
       const year = currentDate.getFullYear();
       const month0 = currentDate.getMonth();
+      const month1 = month0 + 1;
 
       const [txData, categories, bills, payments] = await Promise.all([
         TransactionService.getByMonth(user.id, year, month0),
@@ -98,8 +99,8 @@ export default function Dashboard() {
       );
 
       // Banner: agendamentos do mês (não pagos)
-      const monthPayments = payments.filter(p => p.year === year && p.month === month0);
-      const paidSet = new Set(monthPayments.filter(p => p.is_paid).map(p => p.scheduled_bill_id));
+      const monthPayments = payments.filter((p) => p.year === year && p.month === month1);
+      const paidSet = new Set(monthPayments.filter((p) => p.is_paid).map((p) => p.scheduled_bill_id));
 
       const unpaid = bills.filter(b => !paidSet.has(b.id));
       const unpaidTotal = unpaid.reduce((sum, b) => sum + Number(b.amount), 0);
