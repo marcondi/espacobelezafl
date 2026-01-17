@@ -35,6 +35,7 @@ export default function ScheduleTab({ currentDate, onRefresh }: ScheduleTabProps
 
     const year = currentDate.getFullYear();
     const month0 = currentDate.getMonth();
+    const month1 = month0 + 1;
 
     const [billsData, categoriesData, paymentsData] = await Promise.all([
       ScheduledBillService.getActiveBills(user.id),
@@ -42,7 +43,7 @@ export default function ScheduleTab({ currentDate, onRefresh }: ScheduleTabProps
       ScheduledBillService.getAllPayments(user.id),
     ]);
 
-    const monthPayments = paymentsData.filter((p) => p.year === year && p.month === month0);
+    const monthPayments = paymentsData.filter((p) => p.year === year && p.month === month1);
 
     setBills(billsData);
     setCategories(categoriesData);
@@ -62,6 +63,7 @@ export default function ScheduleTab({ currentDate, onRefresh }: ScheduleTabProps
 
     const year = currentDate.getFullYear();
     const month0 = currentDate.getMonth();
+    const month1 = month0 + 1;
 
     try {
       setPayingBillId(bill.id);
@@ -79,7 +81,7 @@ export default function ScheduleTab({ currentDate, onRefresh }: ScheduleTabProps
         recurrence_group_id: null,
       });
 
-      await ScheduledBillService.markAsPaid(user.id, bill.id, year, month0, txData.id);
+      await ScheduledBillService.markAsPaid(user.id, bill.id, year, month1, txData.id);
 
       toast({ title: 'Pago!', description: 'Conta marcada como paga.' });
       await loadData();
