@@ -1,101 +1,137 @@
-import { StorageService } from './storageService';
-import { ScheduledBill, BillPayment } from '@/types';
-
-const BILLS_KEY = 'scheduled_bills';
-const PAYMENTS_KEY = 'bill_payments';
+import { supabase } from '@/integrations/supabase/client';
+import type { ScheduledBill, BillPayment } from '@/types';
 
 export class ScheduledBillService {
-  static getAllBills(userId: string): ScheduledBill[] {
-    return StorageService.get<ScheduledBill[]>(userId, BILLS_KEY) || [];
+  static async getAllBills(userId: string): Promise<ScheduledBill[]> {
+    const { data, error } = await supabase
+      .from('scheduled_bills')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data ?? []) as ScheduledBill[];
   }
 
-  static getActiveBills(userId: string): ScheduledBill[] {
-    return this.getAllBills(userId).filter(b => b.is_active);
+  static async getActiveBills(userId: string): Promise<ScheduledBill[]> {
+    const { data, error } = await supabase
+      .from('scheduled_bills')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .order('due_day', { ascending: true });
+
+    if (error) throw error;
+    return (data ?? []) as ScheduledBill[];
   }
 
-  static createBill(userId: string, data: Omit<ScheduledBill, 'id' | 'user_id' | 'created_at' | 'is_active'>): ScheduledBill {
-    const bills = this.getAllBills(userId);
-    const newBill: ScheduledBill = {
+  static async createBill(
+    userId: string,
+    data: Omit<ScheduledBill, 'id' | 'user_id' | 'created_at' | 'is_active'>
+  ): Promise<ScheduledBill> {
+    const payload = {
       ...data,
-      id: crypto.randomUUID(),
       user_id: userId,
       is_active: true,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     };
 
-    bills.push(newBill);
-    StorageService.set(userId, BILLS_KEY, bills);
-    return newBill;
+    const { data: created, error } = await supabase
+      .from('scheduled_bills')
+      .insert(payload as any)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    return created as ScheduledBill;
   }
 
-  static updateBill(userId: string, id: string, data: Partial<Omit<ScheduledBill, 'id' | 'user_id' | 'created_at'>>): boolean {
-    const bills = this.getAllBills(userId);
-    const index = bills.findIndex(b => b.id === id);
-    if (index === -1) return false;
+  static async updateBill(
+    userId: string,
+    id: string,
+    data: Partial<Omit<ScheduledBill, 'id' | 'user_id' | 'created_at'>>
+  ): Promise<boolean> {
+    const { error } = await supabase
+      .from('scheduled_bills')
+      .update(data as any)
+      .eq('id', id)
+      .eq('user_id', userId);
 
-    bills[index] = { ...bills[index], ...data };
-    StorageService.set(userId, BILLS_KEY, bills);
+    if (error) throw error;
     return true;
   }
 
-  static deleteBill(userId: string, id: string): boolean {
-    const bills = this.getAllBills(userId);
-    const filtered = bills.filter(b => b.id !== id);
-    if (filtered.length === bills.length) return false;
-
-    StorageService.set(userId, BILLS_KEY, filtered);
+  static async deleteBill(userId: string, id: string): Promise<boolean> {
+    const { error } = await supabase.from('scheduled_bills').delete().eq('id', id).eq('user_id', userId);
+    if (error) throw error;
     return true;
   }
 
-  // Bill Payments
-  static getAllPayments(userId: string): BillPayment[] {
-    return StorageService.get<BillPayment[]>(userId, PAYMENTS_KEY) || [];
+  static async getAllPayments(userId: string): Promise<BillPayment[]> {
+    const { data, error } = await supabase
+      .from('bill_payments')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data ?? []) as BillPayment[];
   }
 
-  static getPaymentStatus(userId: string, billId: string, year: number, month: number): BillPayment | undefined {
-    const payments = this.getAllPayments(userId);
-    return payments.find(p => 
-      p.scheduled_bill_id === billId && 
-      p.year === year && 
-      p.month === month
-    );
+  static async getPaymentStatus(userId: string, billId: string, year: number, month: number): Promise<BillPayment | undefined> {
+    const { data, error } = await supabase
+      .from('bill_payments')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('scheduled_bill_id', billId)
+      .eq('year', year)
+      .eq('month', month)
+      .maybeSingle();
+
+    if (error) throw error;
+    return (data ?? undefined) as any;
   }
 
-  static markAsPaid(
-    userId: string, 
-    billId: string, 
-    year: number, 
-    month: number, 
+  static async markAsPaid(
+    userId: string,
+    billId: string,
+    year: number,
+    month: number,
     transactionId: string
-  ): BillPayment {
-    const payments = this.getAllPayments(userId);
-    
-    const existing = payments.find(p => 
-      p.scheduled_bill_id === billId && 
-      p.year === year && 
-      p.month === month
-    );
+  ): Promise<BillPayment> {
+    const existing = await this.getPaymentStatus(userId, billId, year, month);
 
     if (existing) {
-      existing.is_paid = true;
-      existing.paid_at = new Date().toISOString();
-      existing.transaction_id = transactionId;
-    } else {
-      const newPayment: BillPayment = {
-        id: crypto.randomUUID(),
-        user_id: userId,
-        scheduled_bill_id: billId,
-        year,
-        month,
-        is_paid: true,
-        paid_at: new Date().toISOString(),
-        transaction_id: transactionId,
-        created_at: new Date().toISOString()
-      };
-      payments.push(newPayment);
+      const { data, error } = await supabase
+        .from('bill_payments')
+        .update({ is_paid: true, paid_at: new Date().toISOString(), transaction_id: transactionId } as any)
+        .eq('id', existing.id)
+        .eq('user_id', userId)
+        .select('*')
+        .single();
+
+      if (error) throw error;
+      return data as BillPayment;
     }
 
-    StorageService.set(userId, PAYMENTS_KEY, payments);
-    return payments[payments.length - 1];
+    const payload = {
+      user_id: userId,
+      scheduled_bill_id: billId,
+      year,
+      month,
+      is_paid: true,
+      paid_at: new Date().toISOString(),
+      transaction_id: transactionId,
+      created_at: new Date().toISOString(),
+    };
+
+    const { data, error } = await supabase
+      .from('bill_payments')
+      .insert(payload as any)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    return data as BillPayment;
   }
 }

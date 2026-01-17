@@ -16,7 +16,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from '@/components/ui/alert-dialog';
 
 export default function CategoriesTab() {
   const { user } = useAuth();
@@ -27,14 +27,13 @@ export default function CategoriesTab() {
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user) {
-      loadCategories();
-    }
+    if (user) void loadCategories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const loadCategories = () => {
+  const loadCategories = async () => {
     if (!user) return;
-    const data = CategoryService.getAll(user.id);
+    const data = await CategoryService.getAll(user.id);
     setCategories(data);
   };
 
@@ -48,26 +47,17 @@ export default function CategoriesTab() {
     setIsModalOpen(true);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteId || !user) return;
 
-    const success = CategoryService.delete(user.id, deleteId);
-
-    if (!success) {
-      toast({
-        title: 'Erro ao excluir',
-        variant: 'destructive'
-      });
-      return;
+    try {
+      await CategoryService.delete(user.id, deleteId);
+      toast({ title: 'Categoria excluída', description: 'A categoria foi removida com sucesso.' });
+      setDeleteId(null);
+      await loadCategories();
+    } catch (e: any) {
+      toast({ title: 'Erro ao excluir', description: e?.message ?? 'Tente novamente.', variant: 'destructive' });
     }
-
-    toast({
-      title: 'Categoria excluída',
-      description: 'A categoria foi removida com sucesso.'
-    });
-
-    setDeleteId(null);
-    loadCategories();
   };
 
   const incomeCategories = categories.filter(c => c.type === 'income');
@@ -133,7 +123,7 @@ export default function CategoriesTab() {
         open={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
-          loadCategories();
+          void loadCategories();
         }}
         category={editingCategory}
       />
@@ -148,7 +138,7 @@ export default function CategoriesTab() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Excluir</AlertDialogAction>
+            <AlertDialogAction onClick={() => void handleDelete()}>Excluir</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

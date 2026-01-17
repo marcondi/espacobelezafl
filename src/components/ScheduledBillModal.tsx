@@ -19,71 +19,64 @@ export default function ScheduledBillModal({ open, onClose }: ScheduledBillModal
   const { user } = useAuth();
   const { toast } = useToast();
   const [categories, setCategories] = useState<Category[]>([]);
-  
+  const [isSaving, setIsSaving] = useState(false);
+
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
     category_id: '',
     due_day: '',
-    recurrence: 'monthly' as 'monthly' | 'yearly'
+    recurrence: 'monthly' as 'monthly' | 'yearly',
   });
 
   useEffect(() => {
-    if (user) {
-      loadCategories();
-    }
+    if (user) void loadCategories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   useEffect(() => {
     if (open) {
-      setFormData({
-        description: '',
-        amount: '',
-        category_id: '',
-        due_day: '',
-        recurrence: 'monthly'
-      });
+      setFormData({ description: '', amount: '', category_id: '', due_day: '', recurrence: 'monthly' });
     }
   }, [open]);
 
-  const loadCategories = () => {
+  const loadCategories = async () => {
     if (!user) return;
-    const data = CategoryService.getAll(user.id).filter(c => c.type === 'expense');
+    const data = (await CategoryService.getAll(user.id)).filter(c => c.type === 'expense');
     setCategories(data);
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!user) return;
 
     if (!formData.description || !formData.amount || !formData.category_id || !formData.due_day) {
-      toast({
-        title: 'Campos obrigatórios',
-        description: 'Preencha todos os campos',
-        variant: 'destructive'
-      });
+      toast({ title: 'Campos obrigatórios', description: 'Preencha todos os campos', variant: 'destructive' });
       return;
     }
 
     const dueDay = parseInt(formData.due_day);
     if (dueDay < 1 || dueDay > 31) {
-      toast({
-        title: 'Dia inválido',
-        description: 'O dia de vencimento deve estar entre 1 e 31',
-        variant: 'destructive'
-      });
+      toast({ title: 'Dia inválido', description: 'O dia de vencimento deve estar entre 1 e 31', variant: 'destructive' });
       return;
     }
 
-    ScheduledBillService.createBill(user.id, {
-      description: formData.description,
-      amount: parseFloat(formData.amount),
-      category_id: formData.category_id,
-      due_day: dueDay,
-      recurrence: formData.recurrence
-    });
+    try {
+      setIsSaving(true);
+      await ScheduledBillService.createBill(user.id, {
+        description: formData.description,
+        amount: parseFloat(formData.amount),
+        category_id: formData.category_id,
+        due_day: dueDay,
+        recurrence: formData.recurrence,
+      });
 
-    toast({ title: 'Criado!', description: 'Conta agendada criada com sucesso.' });
-    onClose();
+      toast({ title: 'Criado!', description: 'Conta agendada criada com sucesso.' });
+      onClose();
+    } catch (e: any) {
+      toast({ title: 'Erro ao salvar', description: e?.message ?? 'Tente novamente.', variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -122,7 +115,9 @@ export default function ScheduledBillModal({ open, onClose }: ScheduledBillModal
               </SelectTrigger>
               <SelectContent>
                 {categories.map(cat => (
-                  <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                  <SelectItem key={cat.id} value={cat.id}>
+                    {cat.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -153,8 +148,8 @@ export default function ScheduledBillModal({ open, onClose }: ScheduledBillModal
             </Select>
           </div>
 
-          <Button onClick={handleSubmit} className="w-full">
-            Criar Conta Agendada
+          <Button onClick={() => void handleSubmit()} className="w-full" disabled={isSaving}>
+            {isSaving ? 'Salvando…' : 'Criar Conta Agendada'}
           </Button>
         </div>
       </DialogContent>

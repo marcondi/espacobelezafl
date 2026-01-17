@@ -1,46 +1,65 @@
-import { StorageService } from './storageService';
-import { Transaction } from '@/types';
-
-const ENTITY_KEY = 'transactions';
+import { supabase } from '@/integrations/supabase/client';
+import type { Transaction } from '@/types';
 
 export class TransactionService {
-  static getAll(userId: string): Transaction[] {
-    return StorageService.get<Transaction[]>(userId, ENTITY_KEY) || [];
+  static async getAll(userId: string): Promise<Transaction[]> {
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('date', { ascending: true });
+
+    if (error) throw error;
+    return (data ?? []) as Transaction[];
   }
 
-  static getById(userId: string, id: string): Transaction | undefined {
-    const transactions = this.getAll(userId);
-    return transactions.find(t => t.id === id);
+  static async getByMonth(userId: string, year: number, month0: number): Promise<Transaction[]> {
+    await this.ensureRecurringUpTo(userId, year, month0);
+
+    const start = new Date(year, month0, 1);
+    const end = new Date(year, month0 + 1, 0);
+
+    const startIso = start.toISOString().slice(0, 10);
+    const endIso = end.toISOString().slice(0, 10);
+
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('date', startIso)
+      .lte('date', endIso)
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    return (data ?? []) as Transaction[];
   }
 
-  static getByMonth(userId: string, year: number, month: number): Transaction[] {
-    // Garantir que séries recorrentes tenham exatamente 1 lançamento por mês
-    // (gera faltantes até o mês solicitado; não cria duplicados)
-    this.ensureRecurringUpTo(userId, year, month);
+  private static async ensureRecurringUpTo(userId: string, targetYear: number, targetMonth0: number): Promise<void> {
+    // Fetch all recurring transactions for the user (we need the full series map).
+    const { data, error } = await supabase
+      .from('transactions')
+      .select('*')
+      .eq('user_id', userId)
+      .not('recurrence_group_id', 'is', null)
+      .not('recurrence', 'is', null)
+      .order('date', { ascending: true });
 
-    const transactions = this.getAll(userId);
-    return transactions.filter(t => {
-      const date = new Date(t.date);
-      return date.getFullYear() === year && date.getMonth() === month;
-    });
-  }
+    if (error) throw error;
 
-  private static ensureRecurringUpTo(userId: string, targetYear: number, targetMonth0: number): void {
-    const transactions = this.getAll(userId);
+    const transactions = (data ?? []) as Transaction[];
 
-    // Agrupa por série (recurrence_group_id) e escolhe um "base" (o mais antigo) por série
+    // Pick the oldest transaction as base per series
     const seriesBase = new Map<string, Transaction>();
     for (const t of transactions) {
       if (!t.recurrence_group_id) continue;
       if (!t.recurrence || t.recurrence === 'none') continue;
 
       const existing = seriesBase.get(t.recurrence_group_id);
-      if (!existing || t.date < existing.date) {
-        seriesBase.set(t.recurrence_group_id, t);
-      }
+      if (!existing || t.date < existing.date) seriesBase.set(t.recurrence_group_id, t);
     }
 
-    const nowIso = new Date().toISOString();
+    const toInsert: Array<Omit<Transaction, 'id'>> = [];
 
     for (const [groupId, base] of seriesBase.entries()) {
       const [baseYStr, baseMStr, baseDStr] = base.date.split('-');
@@ -48,7 +67,6 @@ export class TransactionService {
       const baseMonth = Number(baseMStr); // 1-12
       const baseDay = Number(baseDStr);
 
-      // Mapa de meses já existentes na série (ano-mês)
       const existingMonths = new Set<string>();
       for (const t of transactions) {
         if (t.recurrence_group_id !== groupId) continue;
@@ -72,13 +90,19 @@ export class TransactionService {
           const day = Math.min(baseDay, daysInMonth);
           const newDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-          transactions.push({
-            ...base,
-            id: crypto.randomUUID(),
+          toInsert.push({
+            user_id: userId,
+            category_id: base.category_id,
+            amount: base.amount,
             date: newDate,
-            created_at: nowIso,
-            updated_at: nowIso,
-          });
+            description: base.description,
+            type: base.type,
+            recurrence: base.recurrence,
+            recurrence_group_id: base.recurrence_group_id,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          } as any);
+
           existingMonths.add(monthKey);
         }
       }
@@ -94,133 +118,81 @@ export class TransactionService {
           const day = Math.min(baseDay, daysInMonth);
           const newDate = `${year}-${String(baseMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
 
-          transactions.push({
-            ...base,
-            id: crypto.randomUUID(),
+          toInsert.push({
+            user_id: userId,
+            category_id: base.category_id,
+            amount: base.amount,
             date: newDate,
-            created_at: nowIso,
-            updated_at: nowIso,
-          });
+            description: base.description,
+            type: base.type,
+            recurrence: base.recurrence,
+            recurrence_group_id: base.recurrence_group_id,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          } as any);
+
           existingMonths.add(monthKey);
         }
       }
     }
 
-    StorageService.set(userId, ENTITY_KEY, transactions);
+    if (toInsert.length === 0) return;
+
+    // Insert missing months in bulk; duplicates are already prevented by our in-memory month map.
+    const { error } = await supabase.from('transactions').insert(toInsert as any);
+    if (error) throw error;
   }
 
-  static create(userId: string, data: Omit<Transaction, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Transaction {
-    const transactions = this.getAll(userId);
-    const newTransaction: Transaction = {
+  static async create(userId: string, data: Omit<Transaction, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<Transaction> {
+    const recurrence_group_id = data.recurrence_group_id || (data.recurrence ? crypto.randomUUID() : null);
+
+    const payload = {
       ...data,
-      id: crypto.randomUUID(),
       user_id: userId,
-      recurrence_group_id: data.recurrence_group_id || (data.recurrence ? crypto.randomUUID() : null),
+      recurrence_group_id,
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     };
 
-    transactions.push(newTransaction);
-    StorageService.set(userId, ENTITY_KEY, transactions);
+    const { data: created, error } = await supabase
+      .from('transactions')
+      .insert(payload as any)
+      .select('*')
+      .single();
 
-    // Generate recurring transactions
-    if (newTransaction.recurrence && newTransaction.recurrence !== 'none') {
-      this.generateRecurringTransactions(userId, newTransaction);
-    }
-
-    return newTransaction;
+    if (error) throw error;
+    return created as Transaction;
   }
 
-  private static generateRecurringTransactions(userId: string, baseTransaction: Transaction): void {
-    if (!baseTransaction.recurrence || baseTransaction.recurrence === 'none') return;
+  static async update(
+    userId: string,
+    id: string,
+    data: Partial<Omit<Transaction, 'id' | 'user_id' | 'created_at'>>
+  ): Promise<boolean> {
+    const { error } = await supabase
+      .from('transactions')
+      .update({ ...data, updated_at: new Date().toISOString() } as any)
+      .eq('id', id)
+      .eq('user_id', userId);
 
-    const transactions = this.getAll(userId);
-
-    const [baseYearStr, baseMonthStr, baseDayStr] = baseTransaction.date.split('-');
-    const baseYear = Number(baseYearStr);
-    const baseMonth = Number(baseMonthStr); // 1-12
-    const baseDay = Number(baseDayStr);
-
-    const monthsToGenerate = baseTransaction.recurrence === 'monthly' ? 12 : 1;
-
-    for (let i = 1; i <= monthsToGenerate; i++) {
-      let year = baseYear;
-      let month = baseMonth;
-
-      if (baseTransaction.recurrence === 'monthly') {
-        const monthIndex = baseMonth - 1 + i; // 0-based
-        year = baseYear + Math.floor(monthIndex / 12);
-        month = (monthIndex % 12) + 1;
-      } else {
-        year = baseYear + i;
-        month = baseMonth;
-      }
-
-      const daysInMonth = new Date(year, month, 0).getDate();
-      const day = Math.min(baseDay, daysInMonth);
-
-      const newDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-
-      // Evita criar duplicados se já existirem lançamentos dessa série no mesmo mês
-      const alreadyExists = transactions.some((t) => {
-        if (t.recurrence_group_id !== baseTransaction.recurrence_group_id) return false;
-
-        const [yStr, mStr] = t.date.split('-');
-        const existingYear = Number(yStr);
-        const existingMonth = Number(mStr);
-
-        const [newYStr, newMStr] = newDate.split('-');
-        const newYear = Number(newYStr);
-        const newMonth = Number(newMStr);
-
-        return existingYear === newYear && existingMonth === newMonth;
-      });
-
-      if (alreadyExists) continue;
-
-      const recurring: Transaction = {
-        ...baseTransaction,
-        id: crypto.randomUUID(),
-        date: newDate,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      };
-
-      transactions.push(recurring);
-    }
-
-    StorageService.set(userId, ENTITY_KEY, transactions);
-  }
-
-  static update(userId: string, id: string, data: Partial<Omit<Transaction, 'id' | 'user_id' | 'created_at'>>): boolean {
-    const transactions = this.getAll(userId);
-    const index = transactions.findIndex(t => t.id === id);
-    if (index === -1) return false;
-
-    transactions[index] = {
-      ...transactions[index],
-      ...data,
-      updated_at: new Date().toISOString()
-    };
-    StorageService.set(userId, ENTITY_KEY, transactions);
+    if (error) throw error;
     return true;
   }
 
-  static delete(userId: string, id: string): boolean {
-    const transactions = this.getAll(userId);
-    const filtered = transactions.filter(t => t.id !== id);
-    if (filtered.length === transactions.length) return false;
-
-    StorageService.set(userId, ENTITY_KEY, filtered);
+  static async delete(userId: string, id: string): Promise<boolean> {
+    const { error } = await supabase.from('transactions').delete().eq('id', id).eq('user_id', userId);
+    if (error) throw error;
     return true;
   }
 
-  static deleteRecurringGroup(userId: string, groupId: string): boolean {
-    const transactions = this.getAll(userId);
-    const filtered = transactions.filter(t => t.recurrence_group_id !== groupId);
-    if (filtered.length === transactions.length) return false;
+  static async deleteRecurringGroup(userId: string, groupId: string): Promise<boolean> {
+    const { error } = await supabase
+      .from('transactions')
+      .delete()
+      .eq('recurrence_group_id', groupId)
+      .eq('user_id', userId);
 
-    StorageService.set(userId, ENTITY_KEY, filtered);
+    if (error) throw error;
     return true;
   }
 }

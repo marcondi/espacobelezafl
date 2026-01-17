@@ -17,7 +17,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+} from '@/components/ui/alert-dialog';
 
 interface TransactionsListProps {
   transactions: Transaction[];
@@ -32,14 +32,13 @@ export default function TransactionsList({ transactions, onEdit, onRefresh }: Tr
   const [deleteId, setDeleteId] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user) {
-      loadCategories();
-    }
+    if (user) void loadCategories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
-  const loadCategories = () => {
+  const loadCategories = async () => {
     if (!user) return;
-    const data = CategoryService.getAll(user.id);
+    const data = await CategoryService.getAll(user.id);
     setCategories(data);
   };
 
@@ -47,26 +46,17 @@ export default function TransactionsList({ transactions, onEdit, onRefresh }: Tr
     return categories.find(c => c.id === categoryId)?.name || 'Sem categoria';
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!deleteId || !user) return;
 
-    const success = TransactionService.delete(user.id, deleteId);
-
-    if (!success) {
-      toast({
-        title: 'Erro ao excluir',
-        variant: 'destructive'
-      });
-      return;
+    try {
+      await TransactionService.delete(user.id, deleteId);
+      toast({ title: 'Lançamento excluído', description: 'O lançamento foi removido com sucesso.' });
+      setDeleteId(null);
+      onRefresh();
+    } catch (e: any) {
+      toast({ title: 'Erro ao excluir', description: e?.message ?? 'Tente novamente.', variant: 'destructive' });
     }
-
-    toast({
-      title: 'Lançamento excluído',
-      description: 'O lançamento foi removido com sucesso.'
-    });
-
-    setDeleteId(null);
-    onRefresh();
   };
 
   if (transactions.length === 0) {
@@ -91,8 +81,8 @@ export default function TransactionsList({ transactions, onEdit, onRefresh }: Tr
               <div
                 key={tx.id}
                 className={`flex items-center justify-between p-4 rounded-lg border transition-colors ${
-                  tx.type === 'income' 
-                    ? 'border-success/20 bg-success/5 hover:bg-success/10' 
+                  tx.type === 'income'
+                    ? 'border-success/20 bg-success/5 hover:bg-success/10'
                     : 'border-destructive/20 bg-destructive/5 hover:bg-destructive/10'
                 }`}
               >
@@ -141,7 +131,7 @@ export default function TransactionsList({ transactions, onEdit, onRefresh }: Tr
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Excluir</AlertDialogAction>
+            <AlertDialogAction onClick={() => void handleDelete()}>Excluir</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
