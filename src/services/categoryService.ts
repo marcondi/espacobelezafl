@@ -1,75 +1,81 @@
-import { StorageService } from './storageService';
-import { Category } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
+import type { Category } from '@/types';
 
-const ENTITY_KEY = 'categories';
-
-const DEFAULT_CATEGORIES: Omit<Category, 'id' | 'user_id' | 'created_at'>[] = [
-  { name: 'Salário', type: 'income' },
-  { name: 'Freelance', type: 'income' },
-  { name: 'Investimentos', type: 'income' },
+const DEFAULT_CATEGORIES: Array<Pick<Category, 'name' | 'type'>> = [
   { name: 'Alimentação', type: 'expense' },
   { name: 'Transporte', type: 'expense' },
   { name: 'Moradia', type: 'expense' },
   { name: 'Saúde', type: 'expense' },
-  { name: 'Lazer', type: 'expense' },
   { name: 'Educação', type: 'expense' },
-  { name: 'Outros', type: 'expense' }
+  { name: 'Lazer', type: 'expense' },
+  { name: 'Outros', type: 'expense' },
+  { name: 'Salário', type: 'income' },
+  { name: 'Investimentos', type: 'income' },
+  { name: 'Freelance', type: 'income' },
+  { name: 'Outros', type: 'income' },
 ];
 
 export class CategoryService {
-  private static initializeDefaults(userId: string): void {
-    const existing = StorageService.get<Category[]>(userId, ENTITY_KEY);
-    if (!existing || existing.length === 0) {
-      const categories: Category[] = DEFAULT_CATEGORIES.map(cat => ({
-        ...cat,
-        id: crypto.randomUUID(),
-        user_id: userId,
-        created_at: new Date().toISOString()
-      }));
-      StorageService.set(userId, ENTITY_KEY, categories);
-    }
-  }
+  private static async ensureDefaults(userId: string): Promise<void> {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('id')
+      .eq('user_id', userId)
+      .limit(1);
 
-  static getAll(userId: string): Category[] {
-    this.initializeDefaults(userId);
-    return StorageService.get<Category[]>(userId, ENTITY_KEY) || [];
-  }
+    if (error) throw error;
+    if ((data ?? []).length > 0) return;
 
-  static getById(userId: string, id: string): Category | undefined {
-    const categories = this.getAll(userId);
-    return categories.find(c => c.id === id);
-  }
-
-  static create(userId: string, name: string, type: 'income' | 'expense'): Category {
-    const categories = this.getAll(userId);
-    const newCategory: Category = {
-      id: crypto.randomUUID(),
+    const payload = DEFAULT_CATEGORIES.map((c) => ({
       user_id: userId,
-      name,
-      type,
-      created_at: new Date().toISOString()
-    };
-    categories.push(newCategory);
-    StorageService.set(userId, ENTITY_KEY, categories);
-    return newCategory;
+      name: c.name,
+      type: c.type,
+      created_at: new Date().toISOString(),
+    }));
+
+    const { error: insertError } = await supabase.from('categories').insert(payload as any);
+    if (insertError) throw insertError;
   }
 
-  static update(userId: string, id: string, name: string, type: 'income' | 'expense'): boolean {
-    const categories = this.getAll(userId);
-    const index = categories.findIndex(c => c.id === id);
-    if (index === -1) return false;
+  static async getAll(userId: string): Promise<Category[]> {
+    await this.ensureDefaults(userId);
 
-    categories[index] = { ...categories[index], name, type };
-    StorageService.set(userId, ENTITY_KEY, categories);
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('user_id', userId)
+      .order('type', { ascending: true })
+      .order('name', { ascending: true });
+
+    if (error) throw error;
+    return (data ?? []) as Category[];
+  }
+
+  static async create(userId: string, name: string, type: 'income' | 'expense'): Promise<Category> {
+    const { data, error } = await supabase
+      .from('categories')
+      .insert({ user_id: userId, name, type, created_at: new Date().toISOString() } as any)
+      .select('*')
+      .single();
+
+    if (error) throw error;
+    return data as Category;
+  }
+
+  static async update(userId: string, id: string, name: string, type: 'income' | 'expense'): Promise<boolean> {
+    const { error } = await supabase
+      .from('categories')
+      .update({ name, type } as any)
+      .eq('id', id)
+      .eq('user_id', userId);
+
+    if (error) throw error;
     return true;
   }
 
-  static delete(userId: string, id: string): boolean {
-    const categories = this.getAll(userId);
-    const filtered = categories.filter(c => c.id !== id);
-    if (filtered.length === categories.length) return false;
-
-    StorageService.set(userId, ENTITY_KEY, filtered);
+  static async delete(userId: string, id: string): Promise<boolean> {
+    const { error } = await supabase.from('categories').delete().eq('id', id).eq('user_id', userId);
+    if (error) throw error;
     return true;
   }
 }

@@ -1,128 +1,137 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
-import { UserService } from '@/services/userService';
-import { CategoryService } from '@/services/categoryService';
+import { supabase } from '@/integrations/supabase/client';
+import type { Session, User } from '@supabase/supabase-js';
+import { MigrationService } from '@/services/migrationService';
 
-interface LocalUser {
+interface AppUser {
   id: string;
   name: string;
   email: string;
-  isGuest: boolean;
 }
 
 interface AuthContextType {
-  user: LocalUser | null;
+  user: AppUser | null;
+  session: Session | null;
   loading: boolean;
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
-  signInAsGuest: () => void;
-  signOut: () => void;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function mapUser(u: User): AppUser {
+  const nameFromMeta = (u.user_metadata as any)?.name as string | undefined;
+  const email = u.email ?? '';
+  const name = nameFromMeta?.trim() || (email ? email.split('@')[0] : 'Usuário');
+  return { id: u.id, name, email };
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<LocalUser | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { toast } = useToast();
 
   useEffect(() => {
-    // Check for existing session
-    const session = UserService.getSession();
-    if (session) {
-      setUser({
-        id: session.userId,
-        name: session.name,
-        email: session.email,
-        isGuest: session.isGuest
-      });
-    }
-    setLoading(false);
+    // Listener FIRST (prevents missing events)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      setSession(nextSession);
+      setUser(nextSession?.user ? mapUser(nextSession.user) : null);
+
+      // Avoid calling other auth/db methods inside callback
+      if (event === 'SIGNED_IN' && nextSession?.user) {
+        setTimeout(() => {
+          MigrationService.migrateIfNeeded(nextSession.user.id).catch(() => {
+            // Errors are already toasted inside the service when appropriate
+          });
+        }, 0);
+      }
+    });
+
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setUser(data.session?.user ? mapUser(data.session.user) : null);
+      setLoading(false);
+    }).catch(() => {
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = async (email: string, password: string, name: string) => {
-    const result = UserService.signUp(name, email, password);
+  useEffect(() => {
+    if (!loading) {
+      if (user) navigate('/dashboard');
+      else navigate('/login');
+    }
+  }, [user, loading, navigate]);
 
-    if (!result.success) {
+  const signUp = async (email: string, password: string, name: string) => {
+    const redirectUrl = `${window.location.origin}/dashboard`;
+
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: { name }
+      }
+    });
+
+    if (error) {
       toast({
         title: 'Erro ao cadastrar',
-        description: result.error,
+        description: error.message,
         variant: 'destructive'
       });
-      throw new Error(result.error);
-    }
-
-    // Initialize default categories for new user
-    if (result.userId) {
-      CategoryService.getAll(result.userId); // This initializes defaults
+      throw error;
     }
 
     toast({
       title: 'Conta criada!',
-      description: 'Você já pode fazer login.'
+      description: 'Você já pode entrar com seu email e senha.'
     });
   };
 
   const signIn = async (email: string, password: string) => {
-    const result = UserService.signIn(email, password);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-    if (!result.success || !result.user) {
+    if (error) {
       toast({
         title: 'Erro ao entrar',
-        description: result.error,
+        description: error.message,
         variant: 'destructive'
       });
-      throw new Error(result.error);
+      throw error;
     }
 
-    UserService.setSession(result.user.id, result.user.name, result.user.email, false);
-    setUser({
-      id: result.user.id,
-      name: result.user.name,
-      email: result.user.email,
-      isGuest: false
-    });
-
-    // Initialize default categories if needed
-    CategoryService.getAll(result.user.id);
-
-    navigate('/dashboard');
+    // navigation is handled by auth state listener
   };
 
-  const signInAsGuest = () => {
-    const guestId = UserService.loginAsGuest();
-    setUser({
-      id: guestId,
-      name: 'Convidado',
-      email: '',
-      isGuest: true
-    });
+  const signOut = async () => {
+    const { error } = await supabase.auth.signOut();
 
-    // Initialize default categories for guest
-    CategoryService.getAll(guestId);
-
-    navigate('/dashboard');
+    if (error) {
+      toast({
+        title: 'Erro ao sair',
+        description: error.message,
+        variant: 'destructive'
+      });
+      throw error;
+    }
   };
 
-  const signOut = () => {
-    UserService.clearSession();
-    setUser(null);
-    navigate('/login');
-  };
+  const value = useMemo<AuthContextType>(() => ({ user, session, loading, signUp, signIn, signOut }), [user, session, loading]);
 
-  return (
-    <AuthContext.Provider value={{ user, loading, signUp, signIn, signInAsGuest, signOut }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (context === undefined) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 }

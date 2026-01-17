@@ -18,51 +18,46 @@ interface CategoryModalProps {
 export default function CategoryModal({ open, onClose, category }: CategoryModalProps) {
   const { user } = useAuth();
   const { toast } = useToast();
-  
+  const [isSaving, setIsSaving] = useState(false);
+
   const [formData, setFormData] = useState({
     name: '',
-    type: 'expense' as TransactionType
+    type: 'expense' as TransactionType,
   });
 
   useEffect(() => {
     if (category) {
-      setFormData({
-        name: category.name,
-        type: category.type
-      });
+      setFormData({ name: category.name, type: category.type });
     } else {
-      setFormData({
-        name: '',
-        type: 'expense'
-      });
+      setFormData({ name: '', type: 'expense' });
     }
   }, [category, open]);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!user) return;
 
     if (!formData.name) {
-      toast({
-        title: 'Nome obrigatório',
-        description: 'Digite o nome da categoria',
-        variant: 'destructive'
-      });
+      toast({ title: 'Nome obrigatório', description: 'Digite o nome da categoria', variant: 'destructive' });
       return;
     }
 
-    if (category) {
-      const success = CategoryService.update(user.id, category.id, formData.name, formData.type);
-      if (!success) {
-        toast({ title: 'Erro ao atualizar', variant: 'destructive' });
-        return;
-      }
-      toast({ title: 'Atualizado!', description: 'Categoria atualizada com sucesso.' });
-    } else {
-      CategoryService.create(user.id, formData.name, formData.type);
-      toast({ title: 'Criado!', description: 'Categoria criada com sucesso.' });
-    }
+    try {
+      setIsSaving(true);
 
-    onClose();
+      if (category) {
+        await CategoryService.update(user.id, category.id, formData.name, formData.type);
+        toast({ title: 'Atualizado!', description: 'Categoria atualizada com sucesso.' });
+      } else {
+        await CategoryService.create(user.id, formData.name, formData.type);
+        toast({ title: 'Criado!', description: 'Categoria criada com sucesso.' });
+      }
+
+      onClose();
+    } catch (e: any) {
+      toast({ title: 'Erro ao salvar', description: e?.message ?? 'Tente novamente.', variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -95,8 +90,8 @@ export default function CategoryModal({ open, onClose, category }: CategoryModal
             </Select>
           </div>
 
-          <Button onClick={handleSubmit} className="w-full">
-            {category ? 'Atualizar' : 'Criar'}
+          <Button onClick={() => void handleSubmit()} className="w-full" disabled={isSaving}>
+            {isSaving ? 'Salvando…' : category ? 'Atualizar' : 'Criar'}
           </Button>
         </div>
       </DialogContent>

@@ -22,19 +22,19 @@ export default function TransactionModal({ open, onClose, transaction }: Transac
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState<TransactionType>('expense');
   const [categories, setCategories] = useState<Category[]>([]);
-  
+  const [isSaving, setIsSaving] = useState(false);
+
   const [formData, setFormData] = useState({
     description: '',
     amount: '',
     category_id: '',
     date: new Date().toISOString().split('T')[0],
-    recurrence: 'none' as RecurrenceType
+    recurrence: 'none' as RecurrenceType,
   });
 
   useEffect(() => {
-    if (user) {
-      loadCategories();
-    }
+    if (user) void loadCategories();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   useEffect(() => {
@@ -44,7 +44,7 @@ export default function TransactionModal({ open, onClose, transaction }: Transac
         amount: String(transaction.amount),
         category_id: transaction.category_id,
         date: transaction.date,
-        recurrence: transaction.recurrence || 'none'
+        recurrence: transaction.recurrence || 'none',
       });
       setActiveTab(transaction.type);
     } else {
@@ -53,28 +53,24 @@ export default function TransactionModal({ open, onClose, transaction }: Transac
         amount: '',
         category_id: '',
         date: new Date().toISOString().split('T')[0],
-        recurrence: 'none'
+        recurrence: 'none',
       });
     }
   }, [transaction, open]);
 
-  const loadCategories = () => {
+  const loadCategories = async () => {
     if (!user) return;
-    const data = CategoryService.getAll(user.id);
+    const data = await CategoryService.getAll(user.id);
     setCategories(data);
   };
 
   const filteredCategories = categories.filter(c => c.type === activeTab);
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!user) return;
 
     if (!formData.description || !formData.amount || !formData.category_id) {
-      toast({
-        title: 'Campos obrigatórios',
-        description: 'Preencha todos os campos',
-        variant: 'destructive'
-      });
+      toast({ title: 'Campos obrigatórios', description: 'Preencha todos os campos', variant: 'destructive' });
       return;
     }
 
@@ -85,22 +81,26 @@ export default function TransactionModal({ open, onClose, transaction }: Transac
       date: formData.date,
       type: activeTab,
       recurrence: formData.recurrence === 'none' ? null : formData.recurrence,
-      recurrence_group_id: null
+      recurrence_group_id: transaction?.recurrence_group_id ?? null,
     };
 
-    if (transaction) {
-      const success = TransactionService.update(user.id, transaction.id, data);
-      if (!success) {
-        toast({ title: 'Erro ao atualizar', variant: 'destructive' });
-        return;
-      }
-      toast({ title: 'Atualizado!', description: 'Lançamento atualizado com sucesso.' });
-    } else {
-      TransactionService.create(user.id, data);
-      toast({ title: 'Criado!', description: 'Lançamento criado com sucesso.' });
-    }
+    try {
+      setIsSaving(true);
 
-    onClose();
+      if (transaction) {
+        await TransactionService.update(user.id, transaction.id, data);
+        toast({ title: 'Atualizado!', description: 'Lançamento atualizado com sucesso.' });
+      } else {
+        await TransactionService.create(user.id, data as any);
+        toast({ title: 'Criado!', description: 'Lançamento criado com sucesso.' });
+      }
+
+      onClose();
+    } catch (e: any) {
+      toast({ title: 'Erro ao salvar', description: e?.message ?? 'Tente novamente.', variant: 'destructive' });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -145,7 +145,9 @@ export default function TransactionModal({ open, onClose, transaction }: Transac
                 </SelectTrigger>
                 <SelectContent>
                   {filteredCategories.map(cat => (
-                    <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -153,11 +155,7 @@ export default function TransactionModal({ open, onClose, transaction }: Transac
 
             <div className="space-y-2">
               <Label>Data</Label>
-              <Input
-                type="date"
-                value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
-              />
+              <Input type="date" value={formData.date} onChange={(e) => setFormData({ ...formData, date: e.target.value })} />
             </div>
 
             <div className="space-y-2">
@@ -174,8 +172,8 @@ export default function TransactionModal({ open, onClose, transaction }: Transac
               </Select>
             </div>
 
-            <Button onClick={handleSubmit} className="w-full">
-              {transaction ? 'Atualizar' : 'Criar'}
+            <Button onClick={() => void handleSubmit()} className="w-full" disabled={isSaving}>
+              {isSaving ? 'Salvando…' : transaction ? 'Atualizar' : 'Criar'}
             </Button>
           </TabsContent>
         </Tabs>

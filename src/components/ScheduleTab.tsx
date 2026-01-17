@@ -25,22 +25,23 @@ export default function ScheduleTab({ currentDate, onRefresh }: ScheduleTabProps
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
-    if (user) {
-      loadData();
-    }
+    if (user) void loadData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, currentDate]);
 
-  const loadData = () => {
+  const loadData = async () => {
     if (!user) return;
 
-    const billsData = ScheduledBillService.getActiveBills(user.id);
-    const categoriesData = CategoryService.getAll(user.id);
-    
     const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
+    const month0 = currentDate.getMonth();
 
-    const paymentsData = ScheduledBillService.getAllPayments(user.id);
-    const monthPayments = paymentsData.filter(p => p.year === year && p.month === month);
+    const [billsData, categoriesData, paymentsData] = await Promise.all([
+      ScheduledBillService.getActiveBills(user.id),
+      CategoryService.getAll(user.id),
+      ScheduledBillService.getAllPayments(user.id),
+    ]);
+
+    const monthPayments = paymentsData.filter(p => p.year === year && p.month === month0);
 
     setBills(billsData);
     setCategories(categoriesData);
@@ -55,28 +56,26 @@ export default function ScheduleTab({ currentDate, onRefresh }: ScheduleTabProps
     return payments.find(p => p.scheduled_bill_id === billId)?.is_paid || false;
   };
 
-  const handlePayBill = (bill: ScheduledBill) => {
+  const handlePayBill = async (bill: ScheduledBill) => {
     if (!user) return;
 
     const year = currentDate.getFullYear();
-    const month = currentDate.getMonth();
+    const month0 = currentDate.getMonth();
 
-    // Create transaction
-    const txData = TransactionService.create(user.id, {
+    const txData = await TransactionService.create(user.id, {
       category_id: bill.category_id,
       description: bill.description,
       amount: bill.amount,
       type: 'expense',
-      date: format(new Date(year, month, bill.due_day), 'yyyy-MM-dd'),
+      date: format(new Date(year, month0, bill.due_day), 'yyyy-MM-dd'),
       recurrence: null,
-      recurrence_group_id: null
+      recurrence_group_id: null,
     });
 
-    // Mark as paid
-    ScheduledBillService.markAsPaid(user.id, bill.id, year, month, txData.id);
+    await ScheduledBillService.markAsPaid(user.id, bill.id, year, month0, txData.id);
 
     toast({ title: 'Pago!', description: 'Conta marcada como paga.' });
-    loadData();
+    await loadData();
     onRefresh();
   };
 
@@ -92,9 +91,7 @@ export default function ScheduleTab({ currentDate, onRefresh }: ScheduleTabProps
         </CardHeader>
         <CardContent>
           {bills.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">
-              Nenhuma conta agendada
-            </p>
+            <p className="text-center text-muted-foreground py-8">Nenhuma conta agendada</p>
           ) : (
             <div className="space-y-3">
               {bills.map((bill) => {
@@ -103,9 +100,7 @@ export default function ScheduleTab({ currentDate, onRefresh }: ScheduleTabProps
                   <div
                     key={bill.id}
                     className={`flex items-center justify-between p-4 rounded-lg border transition-colors ${
-                      isPaid 
-                        ? 'border-success/20 bg-success/5' 
-                        : 'border-border bg-card'
+                      isPaid ? 'border-success/20 bg-success/5' : 'border-border bg-card'
                     }`}
                   >
                     <div className="flex items-center gap-4 flex-1">
@@ -131,7 +126,7 @@ export default function ScheduleTab({ currentDate, onRefresh }: ScheduleTabProps
                           <span className="text-sm font-medium">Pago</span>
                         </div>
                       ) : (
-                        <Button onClick={() => handlePayBill(bill)} size="sm">
+                        <Button onClick={() => void handlePayBill(bill)} size="sm">
                           Pagar
                         </Button>
                       )}
@@ -148,7 +143,7 @@ export default function ScheduleTab({ currentDate, onRefresh }: ScheduleTabProps
         open={isModalOpen}
         onClose={() => {
           setIsModalOpen(false);
-          loadData();
+          void loadData();
         }}
       />
     </>
