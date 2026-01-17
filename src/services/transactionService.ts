@@ -14,11 +14,99 @@ export class TransactionService {
   }
 
   static getByMonth(userId: string, year: number, month: number): Transaction[] {
+    // Garantir que séries recorrentes tenham exatamente 1 lançamento por mês
+    // (gera faltantes até o mês solicitado; não cria duplicados)
+    this.ensureRecurringUpTo(userId, year, month);
+
     const transactions = this.getAll(userId);
     return transactions.filter(t => {
       const date = new Date(t.date);
       return date.getFullYear() === year && date.getMonth() === month;
     });
+  }
+
+  private static ensureRecurringUpTo(userId: string, targetYear: number, targetMonth0: number): void {
+    const transactions = this.getAll(userId);
+
+    // Agrupa por série (recurrence_group_id) e escolhe um "base" (o mais antigo) por série
+    const seriesBase = new Map<string, Transaction>();
+    for (const t of transactions) {
+      if (!t.recurrence_group_id) continue;
+      if (!t.recurrence || t.recurrence === 'none') continue;
+
+      const existing = seriesBase.get(t.recurrence_group_id);
+      if (!existing || t.date < existing.date) {
+        seriesBase.set(t.recurrence_group_id, t);
+      }
+    }
+
+    const nowIso = new Date().toISOString();
+
+    for (const [groupId, base] of seriesBase.entries()) {
+      const [baseYStr, baseMStr, baseDStr] = base.date.split('-');
+      const baseYear = Number(baseYStr);
+      const baseMonth = Number(baseMStr); // 1-12
+      const baseDay = Number(baseDStr);
+
+      // Mapa de meses já existentes na série (ano-mês)
+      const existingMonths = new Set<string>();
+      for (const t of transactions) {
+        if (t.recurrence_group_id !== groupId) continue;
+        const [yStr, mStr] = t.date.split('-');
+        existingMonths.add(`${yStr}-${mStr}`);
+      }
+
+      if (base.recurrence === 'monthly') {
+        const baseKey = baseYear * 12 + (baseMonth - 1);
+        const targetKey = targetYear * 12 + targetMonth0;
+        if (targetKey <= baseKey) continue;
+
+        for (let key = baseKey + 1; key <= targetKey; key++) {
+          const year = Math.floor(key / 12);
+          const month = (key % 12) + 1; // 1-12
+
+          const monthKey = `${year}-${String(month).padStart(2, '0')}`;
+          if (existingMonths.has(monthKey)) continue;
+
+          const daysInMonth = new Date(year, month, 0).getDate();
+          const day = Math.min(baseDay, daysInMonth);
+          const newDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+          transactions.push({
+            ...base,
+            id: crypto.randomUUID(),
+            date: newDate,
+            created_at: nowIso,
+            updated_at: nowIso,
+          });
+          existingMonths.add(monthKey);
+        }
+      }
+
+      if (base.recurrence === 'yearly') {
+        if (targetYear <= baseYear) continue;
+
+        for (let year = baseYear + 1; year <= targetYear; year++) {
+          const monthKey = `${year}-${String(baseMonth).padStart(2, '0')}`;
+          if (existingMonths.has(monthKey)) continue;
+
+          const daysInMonth = new Date(year, baseMonth, 0).getDate();
+          const day = Math.min(baseDay, daysInMonth);
+          const newDate = `${year}-${String(baseMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+
+          transactions.push({
+            ...base,
+            id: crypto.randomUUID(),
+            date: newDate,
+            created_at: nowIso,
+            updated_at: nowIso,
+          });
+          existingMonths.add(monthKey);
+        }
+      }
+    }
+
+    StorageService.set(userId, ENTITY_KEY, transactions);
   }
 
   static create(userId: string, data: Omit<Transaction, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Transaction {
