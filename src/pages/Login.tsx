@@ -1,24 +1,39 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useAuth } from '@/contexts/AuthContext';
 import { Wallet, TrendingUp } from 'lucide-react';
 
+const REMEMBER_EMAIL_KEY = 'financas_remember_email';
+
 export default function Login() {
   const { signIn, signUp } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
+  const [rememberEmail, setRememberEmail] = useState(false);
   const [loginData, setLoginData] = useState({ email: '', password: '' });
   const [signupData, setSignupData] = useState({ name: '', email: '', password: '' });
+
+  useEffect(() => {
+    const remembered = localStorage.getItem(REMEMBER_EMAIL_KEY);
+    if (remembered) {
+      setRememberEmail(true);
+      setLoginData((prev) => ({ ...prev, email: remembered }));
+    }
+  }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
       await signIn(loginData.email, loginData.password);
+
+      if (rememberEmail) localStorage.setItem(REMEMBER_EMAIL_KEY, loginData.email);
+      else localStorage.removeItem(REMEMBER_EMAIL_KEY);
     } finally {
       setIsLoading(false);
     }
@@ -62,7 +77,7 @@ export default function Login() {
                 <TabsTrigger value="login">Entrar</TabsTrigger>
                 <TabsTrigger value="signup">Cadastrar</TabsTrigger>
               </TabsList>
-              
+
               <TabsContent value="login">
                 <form onSubmit={handleLogin} className="space-y-4">
                   <div className="space-y-2">
@@ -74,6 +89,7 @@ export default function Login() {
                       value={loginData.email}
                       onChange={(e) => setLoginData({ ...loginData, email: e.target.value })}
                       required
+                      autoComplete="email"
                     />
                   </div>
                   <div className="space-y-2">
@@ -85,14 +101,25 @@ export default function Login() {
                       value={loginData.password}
                       onChange={(e) => setLoginData({ ...loginData, password: e.target.value })}
                       required
+                      autoComplete="current-password"
                     />
                   </div>
+
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id="remember-email"
+                      checked={rememberEmail}
+                      onCheckedChange={(v) => setRememberEmail(Boolean(v))}
+                    />
+                    <Label htmlFor="remember-email">Lembrar e-mail</Label>
+                  </div>
+
                   <Button type="submit" className="w-full" disabled={isLoading}>
                     {isLoading ? 'Entrando...' : 'Entrar'}
                   </Button>
                 </form>
               </TabsContent>
-              
+
               <TabsContent value="signup">
                 <form onSubmit={handleSignup} className="space-y-4">
                   <div className="space-y-2">
@@ -104,6 +131,7 @@ export default function Login() {
                       value={signupData.name}
                       onChange={(e) => setSignupData({ ...signupData, name: e.target.value })}
                       required
+                      autoComplete="name"
                     />
                   </div>
                   <div className="space-y-2">
@@ -115,6 +143,7 @@ export default function Login() {
                       value={signupData.email}
                       onChange={(e) => setSignupData({ ...signupData, email: e.target.value })}
                       required
+                      autoComplete="email"
                     />
                   </div>
                   <div className="space-y-2">
@@ -127,6 +156,7 @@ export default function Login() {
                       onChange={(e) => setSignupData({ ...signupData, password: e.target.value })}
                       required
                       minLength={6}
+                      autoComplete="new-password"
                     />
                   </div>
                   <Button type="submit" className="w-full" disabled={isLoading}>
@@ -142,3 +172,4 @@ export default function Login() {
     </div>
   );
 }
+
