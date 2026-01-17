@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTheme } from 'next-themes';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -21,6 +22,7 @@ import FinancialTips from '@/components/FinancialTips';
 export default function Dashboard() {
   const { theme = 'system', setTheme } = useTheme();
   const { user, signOut } = useAuth();
+  const { toast } = useToast();
 
   const [currentDate, setCurrentDate] = useState(new Date());
   const [summary, setSummary] = useState<MonthSummary>({ totalIncome: 0, totalExpense: 0, balance: 0 });
@@ -30,7 +32,10 @@ export default function Dashboard() {
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>();
 
   // Banner de agendamentos (dispensável e reseta ao mudar de mês)
-  const monthKey = useMemo(() => `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`, [currentDate]);
+  const monthKey = useMemo(
+    () => `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`,
+    [currentDate]
+  );
   const [dismissedBannerMonthKey, setDismissedBannerMonthKey] = useState<string | null>(null);
   const [scheduleBanner, setScheduleBanner] = useState<{ unpaidCount: number; unpaidTotal: number } | null>(null);
 
@@ -49,54 +54,65 @@ export default function Dashboard() {
   const loadData = async () => {
     if (!user) return;
 
-    const year = currentDate.getFullYear();
-    const month0 = currentDate.getMonth();
+    try {
+      const year = currentDate.getFullYear();
+      const month0 = currentDate.getMonth();
 
-    const [txData, categories, bills, payments] = await Promise.all([
-      TransactionService.getByMonth(user.id, year, month0),
-      CategoryService.getAll(user.id),
-      ScheduledBillService.getActiveBills(user.id),
-      ScheduledBillService.getAllPayments(user.id),
-    ]);
+      const [txData, categories, bills, payments] = await Promise.all([
+        TransactionService.getByMonth(user.id, year, month0),
+        CategoryService.getAll(user.id),
+        ScheduledBillService.getActiveBills(user.id),
+        ScheduledBillService.getAllPayments(user.id),
+      ]);
 
-    setTransactions(txData);
+      setTransactions(txData);
 
-    const income = txData.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0);
-    const expense = txData.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0);
+      const income = txData.filter(t => t.type === 'income').reduce((sum, t) => sum + Number(t.amount), 0);
+      const expense = txData.filter(t => t.type === 'expense').reduce((sum, t) => sum + Number(t.amount), 0);
 
-    setSummary({ totalIncome: income, totalExpense: expense, balance: income - expense });
+      setSummary({ totalIncome: income, totalExpense: expense, balance: income - expense });
 
-    const expensesByCategory: Record<string, number> = {};
-    txData.filter(t => t.type === 'expense').forEach(t => {
-      const cat = categories.find(c => c.id === t.category_id);
-      if (cat) expensesByCategory[cat.name] = (expensesByCategory[cat.name] || 0) + Number(t.amount);
-    });
+      const expensesByCategory: Record<string, number> = {};
+      txData
+        .filter(t => t.type === 'expense')
+        .forEach(t => {
+          const cat = categories.find(c => c.id === t.category_id);
+          if (cat) expensesByCategory[cat.name] = (expensesByCategory[cat.name] || 0) + Number(t.amount);
+        });
 
-    const colors = [
-      'hsl(var(--primary))',
-      'hsl(var(--success))',
-      'hsl(var(--destructive))',
-      'hsl(var(--accent))',
-      'hsl(158 64% 62%)',
-      'hsl(0 72% 71%)',
-    ];
+      const colors = [
+        'hsl(var(--primary))',
+        'hsl(var(--success))',
+        'hsl(var(--destructive))',
+        'hsl(var(--accent))',
+        'hsl(158 64% 62%)',
+        'hsl(0 72% 71%)',
+      ];
 
-    setCategoryExpenses(
-      Object.entries(expensesByCategory).map(([category, amount], i) => ({
-        category,
-        amount,
-        color: colors[i % colors.length],
-      }))
-    );
+      setCategoryExpenses(
+        Object.entries(expensesByCategory).map(([category, amount], i) => ({
+          category,
+          amount,
+          color: colors[i % colors.length],
+        }))
+      );
 
-    // Banner: agendamentos do mês (não pagos)
-    const monthPayments = payments.filter(p => p.year === year && p.month === month0);
-    const paidSet = new Set(monthPayments.filter(p => p.is_paid).map(p => p.scheduled_bill_id));
+      // Banner: agendamentos do mês (não pagos)
+      const monthPayments = payments.filter(p => p.year === year && p.month === month0);
+      const paidSet = new Set(monthPayments.filter(p => p.is_paid).map(p => p.scheduled_bill_id));
 
-    const unpaid = bills.filter(b => !paidSet.has(b.id));
-    const unpaidTotal = unpaid.reduce((sum, b) => sum + Number(b.amount), 0);
+      const unpaid = bills.filter(b => !paidSet.has(b.id));
+      const unpaidTotal = unpaid.reduce((sum, b) => sum + Number(b.amount), 0);
 
-    setScheduleBanner({ unpaidCount: unpaid.length, unpaidTotal });
+      setScheduleBanner({ unpaidCount: unpaid.length, unpaidTotal });
+    } catch (e: any) {
+      setScheduleBanner(null);
+      toast({
+        title: 'Erro ao carregar dados',
+        description: e?.message ?? 'Tente novamente.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handlePreviousMonth = () => setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1, 1));
