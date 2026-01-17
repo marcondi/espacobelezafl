@@ -139,8 +139,8 @@ export class TransactionService {
     if (toInsert.length === 0) return;
 
     // Insert missing months in bulk; duplicates are already prevented by our in-memory month map.
-    const { error } = await supabase.from('transactions').insert(toInsert as any);
-    if (error) throw error;
+    const { error: insertError } = await supabase.from('transactions').insert(toInsert as any);
+    if (insertError) throw insertError;
   }
 
   static async create(userId: string, data: Omit<Transaction, 'id' | 'user_id' | 'created_at' | 'updated_at'>): Promise<Transaction> {

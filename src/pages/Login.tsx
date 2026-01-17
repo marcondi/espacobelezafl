@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -9,8 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Wallet, TrendingUp } from 'lucide-react';
 
 export default function Login() {
-  const navigate = useNavigate();
-  const { signIn, signUp, signInAsGuest } = useAuth();
+  const { signIn, signUp } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const [loginData, setLoginData] = useState({ email: '', password: '' });
@@ -35,10 +33,6 @@ export default function Login() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleGuest = () => {
-    signInAsGuest();
   };
 
   return (
@@ -142,18 +136,6 @@ export default function Login() {
               </TabsContent>
             </Tabs>
 
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">ou</span>
-              </div>
-            </div>
-
-            <Button variant="outline" className="w-full" onClick={handleGuest}>
-              Continuar como convidado
-            </Button>
           </CardContent>
         </Card>
       </div>
