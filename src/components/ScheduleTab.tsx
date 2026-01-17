@@ -23,6 +23,7 @@ export default function ScheduleTab({ currentDate, onRefresh }: ScheduleTabProps
   const [payments, setPayments] = useState<BillPayment[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [payingBillId, setPayingBillId] = useState<string | null>(null);
 
   useEffect(() => {
     if (user) void loadData();
@@ -41,7 +42,7 @@ export default function ScheduleTab({ currentDate, onRefresh }: ScheduleTabProps
       ScheduledBillService.getAllPayments(user.id),
     ]);
 
-    const monthPayments = paymentsData.filter(p => p.year === year && p.month === month0);
+    const monthPayments = paymentsData.filter((p) => p.year === year && p.month === month0);
 
     setBills(billsData);
     setCategories(categoriesData);
@@ -49,11 +50,11 @@ export default function ScheduleTab({ currentDate, onRefresh }: ScheduleTabProps
   };
 
   const getCategoryName = (categoryId: string) => {
-    return categories.find(c => c.id === categoryId)?.name || 'Sem categoria';
+    return categories.find((c) => c.id === categoryId)?.name || 'Sem categoria';
   };
 
   const getPaymentStatus = (billId: string) => {
-    return payments.find(p => p.scheduled_bill_id === billId)?.is_paid || false;
+    return payments.find((p) => p.scheduled_bill_id === billId)?.is_paid || false;
   };
 
   const handlePayBill = async (bill: ScheduledBill) => {
@@ -62,21 +63,36 @@ export default function ScheduleTab({ currentDate, onRefresh }: ScheduleTabProps
     const year = currentDate.getFullYear();
     const month0 = currentDate.getMonth();
 
-    const txData = await TransactionService.create(user.id, {
-      category_id: bill.category_id,
-      description: bill.description,
-      amount: bill.amount,
-      type: 'expense',
-      date: format(new Date(year, month0, bill.due_day), 'yyyy-MM-dd'),
-      recurrence: null,
-      recurrence_group_id: null,
-    });
+    try {
+      setPayingBillId(bill.id);
 
-    await ScheduledBillService.markAsPaid(user.id, bill.id, year, month0, txData.id);
+      const daysInMonth = new Date(year, month0 + 1, 0).getDate();
+      const dueDay = Math.min(bill.due_day, daysInMonth);
 
-    toast({ title: 'Pago!', description: 'Conta marcada como paga.' });
-    await loadData();
-    onRefresh();
+      const txData = await TransactionService.create(user.id, {
+        category_id: bill.category_id,
+        description: bill.description,
+        amount: bill.amount,
+        type: 'expense',
+        date: format(new Date(year, month0, dueDay), 'yyyy-MM-dd'),
+        recurrence: null,
+        recurrence_group_id: null,
+      });
+
+      await ScheduledBillService.markAsPaid(user.id, bill.id, year, month0, txData.id);
+
+      toast({ title: 'Pago!', description: 'Conta marcada como paga.' });
+      await loadData();
+      onRefresh();
+    } catch (e: any) {
+      toast({
+        title: 'Não foi possível pagar',
+        description: e?.message ?? 'Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setPayingBillId(null);
+    }
   };
 
   return (
@@ -126,8 +142,12 @@ export default function ScheduleTab({ currentDate, onRefresh }: ScheduleTabProps
                           <span className="text-sm font-medium">Pago</span>
                         </div>
                       ) : (
-                        <Button onClick={() => void handlePayBill(bill)} size="sm">
-                          Pagar
+                        <Button
+                          onClick={() => void handlePayBill(bill)}
+                          size="sm"
+                          disabled={payingBillId === bill.id}
+                        >
+                          {payingBillId === bill.id ? 'Pagando…' : 'Pagar'}
                         </Button>
                       )}
                     </div>
