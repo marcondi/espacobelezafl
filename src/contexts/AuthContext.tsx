@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import type { Session, User } from '@supabase/supabase-js';
@@ -34,11 +34,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
 
   useEffect(() => {
     // Listener FIRST (prevents missing events)
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, nextSession) => {
       setSession(nextSession);
       setUser(nextSession?.user ? mapUser(nextSession.user) : null);
 
@@ -46,29 +49,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (event === 'SIGNED_IN' && nextSession?.user) {
         setTimeout(() => {
           MigrationService.migrateIfNeeded(nextSession.user.id).catch(() => {
-            // Errors are already toasted inside the service when appropriate
+            // errors are handled/toasted inside the service
           });
+        }, 0);
+      }
+
+      // Ensure the recovery flow can stay on the reset screen
+      if (event === 'PASSWORD_RECOVERY') {
+        setTimeout(() => {
+          navigate('/reset-password', { replace: true });
         }, 0);
       }
     });
 
-    supabase.auth.getSession().then(({ data }) => {
-      setSession(data.session);
-      setUser(data.session?.user ? mapUser(data.session.user) : null);
-      setLoading(false);
-    }).catch(() => {
-      setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data }) => {
+        setSession(data.session);
+        setUser(data.session?.user ? mapUser(data.session.user) : null);
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoading(false);
+      });
 
     return () => subscription.unsubscribe();
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
-    if (!loading) {
-      if (user) navigate('/dashboard');
-      else navigate('/login');
-    }
-  }, [user, loading, navigate]);
+    if (loading) return;
+
+    const isResetPasswordRoute = location.pathname.startsWith('/reset-password');
+    if (isResetPasswordRoute) return;
+
+    if (user) navigate('/dashboard', { replace: true });
+    else navigate('/login', { replace: true });
+  }, [user, loading, navigate, location.pathname]);
 
   const signUp = async (email: string, password: string, name: string) => {
     const redirectUrl = `${window.location.origin}/dashboard`;
@@ -78,22 +94,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       password,
       options: {
         emailRedirectTo: redirectUrl,
-        data: { name }
-      }
+        data: { name },
+      },
     });
 
     if (error) {
       toast({
         title: 'Erro ao cadastrar',
         description: error.message,
-        variant: 'destructive'
+        variant: 'destructive',
       });
       throw error;
     }
 
     toast({
       title: 'Conta criada!',
-      description: 'Você já pode entrar com seu email e senha.'
+      description: 'Você já pode entrar com seu email e senha.',
     });
   };
 
@@ -104,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       toast({
         title: 'Erro ao entrar',
         description: error.message,
-        variant: 'destructive'
+        variant: 'destructive',
       });
       throw error;
     }
@@ -119,13 +135,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       toast({
         title: 'Erro ao sair',
         description: error.message,
-        variant: 'destructive'
+        variant: 'destructive',
       });
       throw error;
     }
   };
 
-  const value = useMemo<AuthContextType>(() => ({ user, session, loading, signUp, signIn, signOut }), [user, session, loading]);
+  const value = useMemo<AuthContextType>(
+    () => ({ user, session, loading, signUp, signIn, signOut }),
+    [user, session, loading]
+  );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
