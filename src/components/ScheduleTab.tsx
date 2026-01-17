@@ -39,7 +39,8 @@ export default function ScheduleTab({ currentDate, onRefresh }: ScheduleTabProps
     const today = new Date();
     const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
-    const unpaid = bills.filter((b) => !getPaymentStatus(b.id));
+    const paidSet = new Set(payments.filter((p) => p.is_paid).map((p) => p.scheduled_bill_id));
+    const unpaid = bills.filter((b) => !paidSet.has(b.id));
 
     const dueSoon = unpaid.filter((b) => {
       const dueDay = Math.min(b.due_day, monthMeta.daysInMonth);
