@@ -98,14 +98,21 @@ export default function Dashboard() {
         }))
       );
 
-      // Banner: agendamentos do mês (não pagos)
-      const monthPayments = payments.filter((p) => p.year === year && p.month === month1);
-      const paidSet = new Set(monthPayments.filter((p) => p.is_paid).map((p) => p.scheduled_bill_id));
+      // Banner: agendamentos do mês (somente mês atual)
+      const now = new Date();
+      const isCurrentMonth = year === now.getFullYear() && month0 === now.getMonth();
 
-      const unpaid = bills.filter(b => !paidSet.has(b.id));
-      const unpaidTotal = unpaid.reduce((sum, b) => sum + Number(b.amount), 0);
+      if (!isCurrentMonth) {
+        setScheduleBanner(null);
+      } else {
+        const monthPayments = payments.filter((p) => p.year === year && p.month === month1);
+        const paidSet = new Set(monthPayments.filter((p) => p.is_paid).map((p) => p.scheduled_bill_id));
 
-      setScheduleBanner({ unpaidCount: unpaid.length, unpaidTotal });
+        const unpaid = bills.filter((b) => !paidSet.has(b.id));
+        const unpaidTotal = unpaid.reduce((sum, b) => sum + Number(b.amount), 0);
+
+        setScheduleBanner({ unpaidCount: unpaid.length, unpaidTotal });
+      }
     } catch (e: any) {
       setScheduleBanner(null);
       toast({
