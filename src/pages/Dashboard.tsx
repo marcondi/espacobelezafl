@@ -28,6 +28,7 @@ export default function Dashboard() {
   const [summary, setSummary] = useState<MonthSummary>({ totalIncome: 0, totalExpense: 0, balance: 0 });
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [categoryExpenses, setCategoryExpenses] = useState<CategoryExpense[]>([]);
+  const [activeTab, setActiveTab] = useState<'overview' | 'schedule' | 'categories'>('overview');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | undefined>();
 
@@ -176,19 +177,36 @@ export default function Dashboard() {
                   {new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(scheduleBanner.unpaidTotal)}.
                 </AlertDescription>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label="Fechar banner"
-                onClick={() => setDismissedBannerMonthKey(monthKey)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setActiveTab('schedule')}
+                >
+                  <Calendar className="h-4 w-4" />
+                  Ver na Agenda
+                </Button>
+
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label="Fechar banner"
+                  onClick={() => setDismissedBannerMonthKey(monthKey)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           </Alert>
         )}
 
-        <Tabs defaultValue="overview" className="space-y-6">
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as 'overview' | 'schedule' | 'categories')}
+          className="space-y-6"
+        >
           <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:inline-grid">
             <TabsTrigger value="overview">Visão Geral</TabsTrigger>
             <TabsTrigger value="schedule">Agenda</TabsTrigger>
