@@ -2,97 +2,94 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
+/* Design System: Espaço de Beleza Fernanda Lima
+   Paleta: Rosa elegante com acento rose gold
+   Todas as cores DEVEM estar em HSL
 */
 
 @layer base {
   :root {
-    --background: 210 20% 98%;
-    --foreground: 215 25% 12%;
+    --background: 350 30% 99%;
+    --foreground: 340 20% 15%;
 
     --card: 0 0% 100%;
-    --card-foreground: 215 25% 12%;
+    --card-foreground: 340 20% 15%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 215 25% 12%;
+    --popover-foreground: 340 20% 15%;
 
-    --primary: 158 64% 42%;
+    /* Pink primary - vibrant rose */
+    --primary: 333 78% 58%;
     --primary-foreground: 0 0% 100%;
+    --primary-glow: 333 90% 70%;
 
-    --secondary: 210 100% 95%;
-    --secondary-foreground: 215 25% 12%;
+    --secondary: 340 40% 96%;
+    --secondary-foreground: 340 20% 15%;
 
-    --muted: 210 20% 96%;
-    --muted-foreground: 215 15% 46%;
+    --muted: 340 20% 96%;
+    --muted-foreground: 340 10% 45%;
 
-    --accent: 158 64% 42%;
+    --accent: 333 78% 58%;
     --accent-foreground: 0 0% 100%;
-
-    --success: 158 64% 42%;
-    --success-foreground: 0 0% 100%;
-
-    --income: 158 64% 52%;
-    --income-foreground: 0 0% 100%;
-
-    --expense: 0 72% 51%;
-    --expense-foreground: 0 0% 100%;
 
     --destructive: 0 72% 51%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 214 20% 88%;
-    --input: 214 20% 88%;
-    --ring: 158 64% 42%;
+    --border: 340 20% 90%;
+    --input: 340 20% 90%;
+    --ring: 333 78% 58%;
 
-    --radius: 0.75rem;
+    --radius: 1rem;
 
-    --gradient-primary: linear-gradient(135deg, hsl(158 64% 42%), hsl(158 84% 52%));
-    --gradient-card: linear-gradient(135deg, hsl(0 0% 100%), hsl(210 20% 98%));
-    --shadow-elegant: 0 10px 30px -10px hsl(158 64% 42% / 0.2);
+    --gradient-primary: linear-gradient(135deg, hsl(333 78% 58%), hsl(333 90% 70%));
+    --gradient-soft: linear-gradient(135deg, hsl(340 60% 97%), hsl(340 40% 94%));
+    --gradient-hero: linear-gradient(180deg, hsl(340 30% 0% / 0.6), hsl(340 30% 0% / 0.7));
+    --shadow-elegant: 0 20px 60px -20px hsl(333 78% 58% / 0.35);
+    --shadow-soft: 0 10px 40px -10px hsl(333 78% 58% / 0.15);
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 340 20% 15%;
+    --sidebar-primary: 333 78% 58%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 340 40% 96%;
+    --sidebar-accent-foreground: 340 20% 15%;
+    --sidebar-border: 340 20% 90%;
+    --sidebar-ring: 333 78% 58%;
   }
 
   .dark {
-    --background: 215 28% 8%;
-    --foreground: 210 20% 98%;
+    --background: 340 25% 8%;
+    --foreground: 340 20% 96%;
 
-    --card: 215 25% 12%;
-    --card-foreground: 210 20% 98%;
+    --card: 340 25% 12%;
+    --card-foreground: 340 20% 96%;
 
-    --popover: 215 25% 12%;
-    --popover-foreground: 210 20% 98%;
+    --popover: 340 25% 12%;
+    --popover-foreground: 340 20% 96%;
 
-    --primary: 158 64% 52%;
+    --primary: 333 78% 62%;
     --primary-foreground: 0 0% 100%;
+    --primary-glow: 333 90% 75%;
 
-    --secondary: 215 25% 16%;
-    --secondary-foreground: 210 20% 98%;
+    --secondary: 340 25% 18%;
+    --secondary-foreground: 340 20% 96%;
 
-    --muted: 215 25% 16%;
-    --muted-foreground: 215 15% 65%;
+    --muted: 340 25% 18%;
+    --muted-foreground: 340 15% 65%;
 
-    --accent: 158 64% 52%;
+    --accent: 333 78% 62%;
     --accent-foreground: 0 0% 100%;
-
-    --success: 158 64% 52%;
-    --success-foreground: 0 0% 100%;
-
-    --income: 158 64% 52%;
-    --income-foreground: 0 0% 100%;
-
-    --expense: 0 72% 61%;
-    --expense-foreground: 0 0% 100%;
 
     --destructive: 0 72% 61%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 215 20% 20%;
-    --input: 215 20% 20%;
-    --ring: 158 64% 52%;
+    --border: 340 20% 22%;
+    --input: 340 20% 22%;
+    --ring: 333 78% 62%;
 
-    --gradient-primary: linear-gradient(135deg, hsl(158 64% 52%), hsl(158 84% 62%));
-    --gradient-card: linear-gradient(135deg, hsl(215 25% 12%), hsl(215 25% 14%));
-    --shadow-elegant: 0 10px 30px -10px hsl(158 64% 52% / 0.3);
+    --gradient-primary: linear-gradient(135deg, hsl(333 78% 62%), hsl(333 90% 75%));
+    --gradient-soft: linear-gradient(135deg, hsl(340 25% 12%), hsl(340 25% 15%));
   }
 }
 
@@ -103,5 +100,34 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: 'Playfair Display', Georgia, serif;
+  }
+}
+
+@layer utilities {
+  .gradient-primary {
+    background: var(--gradient-primary);
+  }
+  .gradient-soft {
+    background: var(--gradient-soft);
+  }
+  .shadow-elegant {
+    box-shadow: var(--shadow-elegant);
+  }
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+  .transition-smooth {
+    transition: var(--transition-smooth);
+  }
+  .text-gradient {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
   }
 }
