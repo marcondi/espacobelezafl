@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Phone, Mail, MapPin, Instagram, Clock } from 'lucide-react';
 import { CONTACT } from '@/lib/contact';
 import logo from '@/assets/logo-fernanda-lima.png';
+import NewsletterForm from './NewsletterForm';
 
 export default function Footer() {
   return (
