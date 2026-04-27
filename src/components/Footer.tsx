@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { Phone, Mail, MapPin, Instagram, Clock } from 'lucide-react';
 import { CONTACT } from '@/lib/contact';
 import logo from '@/assets/logo-fernanda-lima.png';
+import NewsletterForm from './NewsletterForm';
 
 export default function Footer() {
   return (
@@ -73,7 +74,16 @@ export default function Footer() {
           </div>
         </div>
 
-        <div className="border-t border-background/10 mt-12 pt-6 text-center text-sm text-background/60">
+        {/* Newsletter */}
+        <div className="border-t border-background/10 mt-12 pt-8 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div>
+            <h4 className="font-display text-lg font-semibold mb-1">Newsletter</h4>
+            <p className="text-sm text-background/70">Receba promoções e novidades em primeira mão</p>
+          </div>
+          <NewsletterForm />
+        </div>
+
+        <div className="border-t border-background/10 mt-8 pt-6 text-center text-sm text-background/60">
           © {new Date().getFullYear()} Espaço de Beleza Fernanda Lima. Todos os direitos reservados.
         </div>
       </div>
