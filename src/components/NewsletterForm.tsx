@@ -47,6 +47,11 @@ export default function NewsletterForm() {
           throw error;
         }
       } else {
+        // Dispara envio dos e-mails (boas-vindas + notificação) sem bloquear o usuário
+        supabase.functions
+          .invoke('newsletter-welcome', { body: { email: result.data.toLowerCase() } })
+          .catch((err) => console.error('Erro ao enviar e-mail de boas-vindas:', err));
+
         toast({
           title: 'Inscrição confirmada! 💖',
           description: 'Você receberá nossas promoções e novidades em primeira mão.',
