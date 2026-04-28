@@ -9,6 +9,7 @@ import Galeria from './pages/Galeria';
 import Equipe from './pages/Equipe';
 import Contato from './pages/Contato';
 import NotFound from './pages/NotFound';
+import NewsletterLogs from './pages/NewsletterLogs';
 import Layout from './components/Layout';
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const App = () => (
             <Route path="/equipe" element={<Equipe />} />
             <Route path="/contato" element={<Contato />} />
           </Route>
+          <Route path="/newsletter-logs" element={<NewsletterLogs />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
