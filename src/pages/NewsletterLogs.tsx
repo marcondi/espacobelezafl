@@ -34,6 +34,15 @@ export default function NewsletterLogs() {
   const [lastResult, setLastResult] = useState<any>(null);
 
   useEffect(() => {
+    document.title = 'Logs Newsletter — Studio Fernanda Lima';
+    let robots = document.querySelector('meta[name="robots"]');
+    if (!robots) {
+      robots = document.createElement('meta');
+      robots.setAttribute('name', 'robots');
+      document.head.appendChild(robots);
+    }
+    robots.setAttribute('content', 'noindex,nofollow');
+
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
       setChecking(false);
@@ -113,10 +122,6 @@ export default function NewsletterLogs() {
   if (!session) {
     return (
       <>
-        <Helmet>
-          <title>Logs Newsletter — Acesso restrito</title>
-          <meta name="robots" content="noindex,nofollow" />
-        </Helmet>
         <div className="min-h-screen flex items-center justify-center p-4">
           <Card className="w-full max-w-sm p-6 space-y-4">
             <div className="space-y-1">
@@ -150,10 +155,6 @@ export default function NewsletterLogs() {
 
   return (
     <>
-      <Helmet>
-        <title>Logs Newsletter — Studio Fernanda Lima</title>
-        <meta name="robots" content="noindex,nofollow" />
-      </Helmet>
       <div className="min-h-screen p-4 md:p-8 max-w-5xl mx-auto space-y-6">
         <header className="flex items-center justify-between gap-4">
           <div>
