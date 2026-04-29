@@ -2,7 +2,7 @@ import { Instagram, Award, Heart, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { CONTACT } from '@/lib/contact';
-import fernanda from '@/assets/fernanda-lima.jpeg';
+import fernanda from '@/assets/fernanda-lima.png';
 
 const values = [
   { icon: Award, title: 'Profissional Especializada', text: 'Anos de experiência em técnicas Diamond, alisamentos, mechas e tratamentos capilares.' },
