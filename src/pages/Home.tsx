@@ -67,7 +67,7 @@ export default function Home() {
                 Agendar Agora
               </a>
             </Button>
-            <Button asChild size="lg" variant="outline" className="rounded-full border-2 border-white text-white bg-transparent hover:bg-white hover:text-foreground text-base h-14 px-8">
+            <Button asChild size="lg" variant="outline" className="rounded-full border-2 border-white text-white bg-transparent hover:bg-primary hover:text-primary-foreground hover:border-primary text-base h-14 px-8">
               <Link to="/servicos">
                 Ver Serviços
                 <ArrowRight className="ml-2 h-5 w-5" />
