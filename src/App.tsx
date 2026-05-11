@@ -8,6 +8,7 @@ import Servicos from './pages/Servicos';
 import Galeria from './pages/Galeria';
 import Equipe from './pages/Equipe';
 import Contato from './pages/Contato';
+import Certificados from './pages/Certificados';
 import NotFound from './pages/NotFound';
 import Layout from './components/Layout';
 
@@ -25,6 +26,7 @@ const App = () => (
             <Route path="/servicos" element={<Servicos />} />
             <Route path="/galeria" element={<Galeria />} />
             <Route path="/equipe" element={<Equipe />} />
+            <Route path="/certificados" element={<Certificados />} />
             <Route path="/contato" element={<Contato />} />
           </Route>
           <Route path="*" element={<NotFound />} />
