@@ -9,7 +9,8 @@ const navItems = [
   { to: '/', label: 'Início' },
   { to: '/servicos', label: 'Serviços' },
   { to: '/galeria', label: 'Galeria' },
-  { to: '/equipe', label: 'Equipe' },
+  { to: "/equipe", label: "Equipe" },
+  { to: "/certificados", label: "Formação" },
   { to: '/contato', label: 'Contato' },
 ];
 
