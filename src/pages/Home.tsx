@@ -8,7 +8,7 @@ import hero from '@/assets/hero-salon.jpg';
 
 const stats = [
   { value: '500+', label: 'Clientes Satisfeitas' },
-  { value: '5+', label: 'Anos de Experiência' },
+  { value: '12+', label: 'Anos de Experiência' },
   { value: '15+', label: 'Serviços Especializados' },
   { value: '98%', label: 'Avaliações Positivas' },
 ];
