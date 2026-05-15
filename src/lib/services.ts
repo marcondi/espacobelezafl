@@ -1,4 +1,5 @@
 import alisamento from '@/assets/service-alisamento.jpg';
+import cortes from '@/assets/service-cortes.jpg';
 import mechas from '@/assets/service-mechas.jpg';
 import tratamento from '@/assets/service-tratamento.jpg';
 import botox from '@/assets/service-botox.jpg';
@@ -86,6 +87,21 @@ export const services: Service[] = [
       'Coloração pode ser trazida pela cliente ou indicada pelo espaço.',
     ],
     image: correcao,
+    price: 'Sob avaliação',
+  },
+  {
+    slug: 'cortes-avancados',
+    title: 'Cortes Avançados',
+    short: 'Cortes exclusivos que valorizam o seu rosto e estilo',
+    description:
+      'Cada fio conta uma história — e o corte certo transforma o visual, valoriza as formas do rosto e revela a melhor versão de você. Na Fernanda Lima, os cortes são executados com técnica refinada, olhar artístico e atenção total às suas características únicas.',
+    details: [
+      'Análise do formato do rosto e estrutura dos fios antes de cada corte.',
+      'Técnicas modernas: degradê, camadas, franja e geometria.',
+      'Finalização profissional com escova ou secagem modeladora.',
+      'Do bob clássico ao corte repicado — cada resultado é personalizado para o seu estilo de vida.',
+    ],
+    image: cortes,
     price: 'Sob avaliação',
   },
   {
