@@ -11,7 +11,7 @@ export default function Footer() {
         <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-10">
           <div>
             <div className="flex items-center gap-3 mb-4">
-              <img src={logo} alt="Fernanda Lima" className="h-12 w-auto bg-background rounded-lg p-1" width={48} height={48} />
+              <img src={logo} alt="Fernanda Lima" className="h-12 w-auto" width={48} height={48} />
               <div>
                 <h3 className="font-display text-lg font-semibold">Fernanda Lima</h3>
                 <p className="text-xs uppercase tracking-widest text-background/60">Espaço de Beleza</p>
