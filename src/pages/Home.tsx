@@ -25,9 +25,9 @@ const testimonials = [
     text: 'Sou cliente da Fernanda há mais de cinco anos e, desde o primeiro atendimento, encontrei muito mais do que cuidados com os cabelos: encontrei atenção, dedicação e profissionalismo. Ao longo desse período, passei por diversas mudanças de visual e sempre me senti segura, graças ao conhecimento técnico e à confiança que ela transmite. Desde a época em que utilizava mega hair até a transição para cortes mais curtos, a Fernanda acompanhou cada etapa com excelência. Hoje mantenho meus cabelos saudáveis, hidratados, brilhantes e leves, resultado de um trabalho realizado com produtos de qualidade e muito cuidado. Recomendo o Espaço Fernanda Lima pela estrutura acolhedora, pelo conforto do ambiente e, principalmente, pela competência e dedicação da profissional Fernanda.',
   },
   {
-    name: 'Juliana Santos',
+    name: 'Solange Aparecida de Lima Silva',
     role: 'Cliente',
-    text: 'Atendimento excepcional e resultado maravilhoso. Virei cliente fiel!',
+    text: 'Gostaria de expressar minha gratidão ao Espaço Fernanda Lima pelo excelente trabalho realizado ao longo de mais de oito anos. Durante todo esse período, a Fernanda sempre cuidou dos meus cabelos com dedicação, competência e um alto padrão de qualidade. Seu profissionalismo, atenção aos detalhes e compromisso com a satisfação dos clientes fazem toda a diferença nos resultados alcançados. Tenho total confiança em seu trabalho e posso afirmar que minha experiência sempre foi extremamente positiva. Parabenizo a Fernanda pela excelência dos serviços prestados e desejo que continue sendo abençoada e alcançando cada vez mais sucesso em sua trajetória profissional.',
   },
 ];
 
