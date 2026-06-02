@@ -15,14 +15,14 @@ const stats = [
 
 const testimonials = [
   {
-    name: 'Maria Silva',
+    name: 'Derlinda Vieira Lima Cazeli',
     role: 'Cliente',
-    text: 'Ambiente incrível e profissionais super capacitados! Meu cabelo nunca esteve tão bonito.',
+    text: 'Há quase seis anos confio meus cuidados à Fernanda e posso afirmar que ela é uma profissional excepcional. Seu trabalho é realizado com excelência, agilidade e muita dedicação, refletindo diretamente nos resultados que alcancei ao longo desse período. Além dos cuidados com os cabelos e unhas, ela também compartilha seu conhecimento por meio de cursos de cabeleireiro, manicure e depilação, formando novos profissionais com a mesma competência que demonstra diariamente. O que mais admiro na Fernanda é a combinação entre profissionalismo, honestidade, caráter e determinação. Sou muito grata por todo o cuidado e carinho que sempre recebi. Desejo que ela continue alcançando ainda mais sucesso, pois é uma profissional que realmente faz a diferença na vida de seus clientes.',
   },
   {
-    name: 'Ana Costa',
+    name: 'Bruna  Bulhões',
     role: 'Cliente',
-    text: 'A coloração ficou perfeita! Exatamente como eu queria. Super recomendo!',
+    text: 'Sou cliente da Fernanda há mais de cinco anos e, desde o primeiro atendimento, encontrei muito mais do que cuidados com os cabelos: encontrei atenção, dedicação e profissionalismo. Ao longo desse período, passei por diversas mudanças de visual e sempre me senti segura, graças ao conhecimento técnico e à confiança que ela transmite. Desde a época em que utilizava mega hair até a transição para cortes mais curtos, a Fernanda acompanhou cada etapa com excelência. Hoje mantenho meus cabelos saudáveis, hidratados, brilhantes e leves, resultado de um trabalho realizado com produtos de qualidade e muito cuidado. Recomendo o Espaço Fernanda Lima pela estrutura acolhedora, pelo conforto do ambiente e, principalmente, pela competência e dedicação da profissional Fernanda.',
   },
   {
     name: 'Juliana Santos',
