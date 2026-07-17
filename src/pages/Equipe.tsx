@@ -37,7 +37,7 @@ export default function Equipe() {
                 alt="Fernanda Lima — Proprietária"
                 width={600}
                 height={800}
-                className="relative rounded-3xl shadow-elegant w-full object-cover aspect-[3/4]"
+                className="relative rounded-3xl shadow-elegant w-full object-cover aspect-[2/3]"
               />
             </div>
 
